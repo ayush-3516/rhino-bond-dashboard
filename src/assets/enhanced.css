@@ -1,0 +1,225 @@
+:root {
+  --color-primary: #42b983;
+  --color-secondary: #2c3e50;
+  --color-text: #2c3e50;
+  --color-text-light: #ffffff;
+  --border-radius: 4px;
+  --transition: all 0.2s ease;
+  --section-gap: 160px;
+  --focus-outline: 2px solid var(--color-primary);
+  --focus-outline-offset: 2px;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  font-family: Arial, sans-serif;
+  line-height: 1.6;
+  color: var(--color-text);
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* Laptop screen optimizations */
+@media (min-width: 1024px) and (max-width: 1440px) {
+  .container {
+    max-width: 1000px;
+    padding: 0 40px;
+  }
+
+  .footer-content {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2rem;
+  }
+
+  .footer-section {
+    margin-bottom: 1rem;
+  }
+
+  .footer-section h4 {
+    margin-bottom: 1rem;
+  }
+}
+:root {
+  --color-primary: #42b983;
+  --color-secondary: #2c3e50;
+  --color-text: #2c3e50;
+  --color-text-light: #ffffff;
+  --border-radius: 4px;
+  --transition: all 0.2s ease;
+  --section-gap: 160px;
+  --focus-outline: 2px solid var(--color-primary);
+  --focus-outline-offset: 2px;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  font-family: Arial, sans-serif;
+  line-height: 1.6;
+  color: var(--color-text);
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* Accessibility improvements */
+*:focus {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-outline-offset);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Improved transitions */
+a,
+button {
+  transition: var(--transition);
+}
+
+/* Better contrast for text */
+h1,
+h2,
+h3,
+h4 {
+  color: var(--color-text);
+  line-height: 1.2;
+  margin: 1.5em 0 0.5em;
+}
+
+/* Responsive typography */
+@media (max-width: 768px) {
+  html {
+    font-size: 14px;
+  }
+}
+
+/* Footer link styles */
+.footer-link {
+  color: var(--color-text-light);
+  text-decoration: none;
+  padding: 0.25rem 0;
+  display: inline-block;
+  transition: var(--transition);
+}
+
+.footer-link:hover,
+.footer-link:focus {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
+address {
+  font-style: normal;
+}
+
+/* Improved spacing for footer sections */
+.footer-section {
+  margin-bottom: 1.5rem;
+}
+
+.footer-section h4 {
+  margin-bottom: 1.25rem;
+}
+
+.footer-section p {
+  margin: 0.5rem 0;
+}
+
+/* Better mobile footer layout */
+@media (max-width: 768px) {
+  .footer-content {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  .footer-section {
+    margin-bottom: 2rem;
+  }
+}
+:root {
+  --color-primary: #42b983;
+  --color-secondary: #2c3e50;
+  --color-text: #2c3e50;
+  --color-text-light: #ffffff;
+  --border-radius: 4px;
+  --transition: all 0.2s ease;
+  --section-gap: 160px;
+  --focus-outline: 2px solid var(--color-primary);
+  --focus-outline-offset: 2px;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  font-family: Arial, sans-serif;
+  line-height: 1.6;
+  color: var(--color-text);
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* Accessibility improvements */
+*:focus {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-outline-offset);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Improved transitions */
+a,
+button {
+  transition: var(--transition);
+}
+
+/* Better contrast for text */
+h1,
+h2,
+h3,
+h4 {
+  color: var(--color-text);
+  line-height: 1.2;
+  margin: 1.5em 0 0.5em;
+}
+
+/* Responsive typography */
+@media (max-width: 768px) {
+  html {
+    font-size: 14px;
+  }
+}
