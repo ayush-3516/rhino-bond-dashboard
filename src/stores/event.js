@@ -72,11 +72,37 @@ export const useEventStore = defineStore('event', () => {
     }
   }
 
+  async function deleteEvents(eventIds) {
+    try {
+      loading.value = true
+      error.value = null
+
+      const { error: supabaseError } = await withServiceRole(async (client) => {
+        return await client
+          .from('events')
+          .delete()
+          .in('id', eventIds)
+      })
+
+      if (supabaseError) throw supabaseError
+
+      // Remove deleted events from local state
+      events.value = events.value.filter(event => !eventIds.includes(event.id))
+    } catch (err) {
+      error.value = err.message
+      console.error('Error deleting events:', err)
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
   return {
     events,
     loading,
     error,
     fetchEvents,
     createEvent,
+    deleteEvents,
   }
 })

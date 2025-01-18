@@ -19,18 +19,23 @@
     </div>
 
     <div v-if="activeTab === 'export'" class="tab-content">
+      <ExportSettingsDialog
+        v-if="showExportDialog"
+        @confirm="handleExportSettings"
+        @close="showExportDialog = false"
+      />
       <BatchTable
         :batches="paginatedBatches"
-        :selected-batches="selectedBatches"
+        v-model:selected-batches="selectedBatches"
         :batch-loading="batchLoading"
         :current-page="currentPage"
         :total-pages="totalPages"
         :loading="loading"
-        @toggle-batch-selection="toggleBatchSelection"
-        @export-selected-batches="exportSelectedBatches"
         @view-batch="viewBatch"
         @prev-page="prevPage"
         @next-page="nextPage"
+        @export-selected-batches="() => showExportDialog = true"
+        @delete-selected-batches="deleteSelectedBatches"
       />
     </div>
 
@@ -39,18 +44,41 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
-
-// Tab management
-const activeTab = ref('generate')
+import { ref, onMounted, computed, watch } from 'vue'
+import { useAuthStore } from '../stores/auth'
+import html2canvas from 'html2canvas'
+import jsPDF from 'jspdf'
+import QRCode from 'qrcode'
 import { supabase } from '../supabase'
 import BatchTable from '../components/QrCode/BatchTable.vue'
 import QrCodeList from '../components/QrCode/QrCodeList.vue'
 import QrCodeGenerator from '../components/QrCode/QrCodeGenerator.vue'
+import ExportSettingsDialog from '../components/QrCode/ExportSettingsDialog.vue'
+
+// Explicitly register components
+const components = {
+  BatchTable,
+  QrCodeList,
+  QrCodeGenerator,
+  ExportSettingsDialog
+}
+
+// Tab management
+const activeTab = ref('generate')
 
 // Reactive state variables
 const batches = ref([])
+const showExportDialog = ref(false)
+const exportSettings = ref({
+  size: 30,
+  perRow: 4,
+  margin: 10
+})
 const selectedBatches = ref([])
+
+watch(selectedBatches, (newValue) => {
+  console.log('Selected batches updated:', newValue)
+}, { deep: true })
 const currentBatchQRCodes = ref([])
 const loading = ref(false)
 const batchLoading = ref(false)
@@ -82,6 +110,7 @@ const paginatedBatches = computed(() => {
 const fetchBatches = async () => {
   try {
     batchLoading.value = true
+    console.log('Fetching batches from Supabase...')
     const { data, error } = await supabase
       .from('qr_codes')
       .select('batch_id, created_at')
@@ -89,6 +118,13 @@ const fetchBatches = async () => {
       .limit(100)
 
     if (error) throw error
+    
+    console.log('Supabase response:', data)
+    
+    if (!data || data.length === 0) {
+      console.warn('No QR code batches found in database')
+      return
+    }
 
     const batchesMap = new Map()
     data
@@ -106,6 +142,8 @@ const fetchBatches = async () => {
           }
         }
       })
+      
+    console.log('Processed batches:', Array.from(batchesMap.values()))
 
     batches.value = Array.from(batchesMap.values())
   } catch (error) {
@@ -136,23 +174,194 @@ const viewBatch = async (batchId) => {
   }
 }
 
-// Toggle selection of batches for export
-const toggleBatchSelection = (batchId) => {
-  if (selectedBatches.value.includes(batchId)) {
-    selectedBatches.value = selectedBatches.value.filter((id) => id !== batchId)
-  } else {
-    selectedBatches.value.push(batchId)
-  }
-}
-
 // Handle new codes generated from QrCodeGenerator
 const handleCodesGenerated = (newCodes) => {
   currentBatchQRCodes.value = newCodes
   fetchBatches()
 }
 
+// Delete selected batches
+const deleteSelectedBatches = async (batchIds) => {
+  try {
+    loading.value = true
+    
+    if (!batchIds || batchIds.length === 0) {
+      throw new Error('No batches selected for deletion')
+    }
+
+    // Delete all QR codes in the selected batches
+    const { error } = await supabase
+      .from('qr_codes')
+      .delete()
+      .in('batch_id', batchIds)
+
+    if (error) throw error
+
+    // Refresh batches list
+    await fetchBatches()
+    selectedBatches.value = []
+    alert('Batches deleted successfully')
+  } catch (error) {
+    console.error('Error deleting batches:', error)
+    alert('Failed to delete batches. Please try again.')
+  } finally {
+    loading.value = false
+  }
+}
+
+// Export selected batches as PDF
+const handleExportSettings = (settings) => {
+  exportSettings.value = settings
+  showExportDialog.value = false
+  
+  // Create a new array from the selected batches to avoid Proxy issues
+  const batchesToExport = Array.isArray(selectedBatches.value) 
+    ? [...selectedBatches.value]
+    : []
+  
+  exportSelectedBatches(batchesToExport)
+}
+
+const exportSelectedBatches = async (selectedBatchIds) => {
+  try {
+    loading.value = true
+    
+    // Ensure we have a valid array of batch IDs
+    if (!Array.isArray(selectedBatchIds) || !selectedBatchIds.length) {
+      throw new Error('No batches selected for export')
+    }
+    
+    // Convert Proxy to plain array if needed
+    const batchIds = [...selectedBatchIds]
+    
+    console.log('Exporting batches:', batchIds)
+    console.log('Batch IDs type:', typeof batchIds)
+    console.log('Batch IDs length:', batchIds.length)
+    
+    console.log('Starting PDF export for batches:', selectedBatchIds)
+    
+    // Get all QR codes for selected batches
+    const { data: qrCodes, error } = await supabase
+      .from('qr_codes')
+      .select('*')
+      .in('batch_id', selectedBatchIds)
+      .order('created_at', { ascending: true })
+
+    if (error) throw error
+    
+    console.log('Fetched', qrCodes.length, 'QR codes for export')
+
+    // Create PDF
+    const pdf = new jsPDF('p', 'mm', 'a4')
+    const pageWidth = pdf.internal.pageSize.getWidth()
+    const pageHeight = pdf.internal.pageSize.getHeight()
+    const margin = exportSettings.value.margin
+    const size = exportSettings.value.size
+    // Calculate available width and spacing
+    const availableWidth = pageWidth - margin * 2
+    const codesPerRow = exportSettings.value.perRow
+    const spacing = (availableWidth - (size * codesPerRow)) / (codesPerRow - 1)
+    const qrPerPage = codesPerRow * Math.floor((pageHeight - margin * 2) / (size + 15))
+    
+    let currentPage = 1
+    let x = margin
+    let y = margin
+
+    for (let i = 0; i < qrCodes.length; i++) {
+      const code = qrCodes[i]
+      
+      // Create temporary canvas for QR code
+      const canvas = document.createElement('canvas')
+      canvas.width = size
+      canvas.height = size
+      const ctx = canvas.getContext('2d')
+      
+      console.log('Creating canvas for QR code:', code.id)
+      
+      try {
+        // Generate QR code with JSON data containing only id
+        const qrData = JSON.stringify({ id: code.id })
+        await QRCode.toCanvas(canvas, qrData, {
+          width: size,
+          margin: 2,
+          color: {
+            dark: '#000000',
+            light: '#ffffff',
+          },
+        })
+        console.log('Successfully generated QR code for:', code.id)
+        
+        // Verify canvas has content
+        const imageData = ctx.getImageData(0, 0, size, size)
+        console.log('Canvas image data:', imageData)
+      } catch (err) {
+        console.error('Error generating QR code:', err)
+        throw err
+      }
+
+      // Add QR code to PDF
+      const imgData = canvas.toDataURL('image/png')
+      pdf.addImage(imgData, 'PNG', x, y, size, size)
+      
+      // Add manual identifier below QR code
+      pdf.setFontSize(8)
+      const identifier = code.manual_identifier
+      const textWidth = pdf.getStringUnitWidth(identifier) * pdf.internal.getFontSize() / pdf.internal.scaleFactor
+      pdf.text(identifier, x + (size - textWidth)/2, y + size + 5)
+
+      // Update position for next QR code
+      x += size + spacing
+      if (x + size > pageWidth - margin) {
+        x = margin
+        y += size + 15
+      }
+
+      // Add new page if needed
+      if ((i + 1) % qrPerPage === 0 && i < qrCodes.length - 1) {
+        pdf.addPage()
+        currentPage++
+        x = margin
+        y = margin
+      }
+    }
+
+    // Save PDF
+    pdf.save(`qr_codes_${new Date().toISOString().slice(0,10)}.pdf`)
+    
+  } catch (error) {
+    console.error('Error exporting QR codes:', error)
+    alert('Failed to export QR codes. Please try again.')
+  } finally {
+    loading.value = false
+  }
+}
+
+// Pagination methods
+const prevPage = () => {
+  if (currentPage.value > 1) {
+    currentPage.value--
+  }
+}
+
+const nextPage = () => {
+  if (currentPage.value < totalPages.value) {
+    currentPage.value++
+  }
+}
+
 // Initialize component
 onMounted(async () => {
+  console.log('QrCodePage mounted')
+  const authStore = useAuthStore()
+  console.log('Authentication state:', authStore.isAuthenticated)
+  console.log('User:', authStore.user)
+  
+  if (!authStore.isAuthenticated) {
+    console.log('User not authenticated, redirecting to auth')
+    return
+  }
+  
+  console.log('User authenticated, fetching batches')
   await fetchBatches()
 })
 </script>

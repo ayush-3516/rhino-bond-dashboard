@@ -15,8 +15,11 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { supabase } from '../supabase'
 import { useAuthStore } from '../stores/auth'
+
+const router = useRouter()
 
 const phoneNumber = ref('')
 const otp = ref('')
@@ -35,12 +38,21 @@ const sendOtp = async () => {
   try {
     const { error: authError } = await supabase.auth.signInWithOtp({
       phone: phoneNumber.value,
+      options: {
+        shouldCreateUser: true
+      }
     })
-    if (authError) throw authError
+    
+    if (authError) {
+      console.error('OTP Send Error:', authError)
+      throw new Error(authError.message || 'Failed to send OTP')
+    }
+    
     otpSent.value = true
     error.value = ''
   } catch (err) {
-    error.value = err.message
+    console.error('Authentication Error:', err)
+    error.value = err.message || 'An error occurred during authentication'
   }
 }
 
@@ -50,13 +62,31 @@ const verifyOtp = async () => {
       phone: phoneNumber.value,
       token: otp.value,
       type: 'sms',
+      options: {
+        redirectTo: window.location.origin
+      }
     })
-    if (authError) throw authError
+    
+    if (authError) {
+      console.error('OTP Verification Error:', authError)
+      throw new Error(authError.message || 'Invalid OTP')
+    }
+
+    if (!data?.session) {
+      throw new Error('No session created')
+    }
 
     authStore.setSession(data.user, data.session)
     error.value = 'Login successful!'
+    
+    // Wait a moment before redirecting to ensure session is set
+    setTimeout(() => {
+      const redirectTo = router.currentRoute.value.query.redirect || '/'
+      router.push(redirectTo)
+    }, 500)
   } catch (err) {
-    error.value = err.message
+    console.error('Verification Error:', err)
+    error.value = err.message || 'Failed to verify OTP'
   }
 }
 </script>
