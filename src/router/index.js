@@ -27,6 +27,12 @@ const router = createRouter({
       component: () => import('../views/EventsView.vue'),
       meta: { requiresAuth: true }
     },
+    {
+      path: '/users',
+      name: 'user-management',
+      component: () => import('../components/UserManagement.vue'),
+      meta: { requiresAuth: true }
+    },
   ],
 })
 

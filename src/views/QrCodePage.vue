@@ -113,9 +113,8 @@ const fetchBatches = async () => {
     console.log('Fetching batches from Supabase...')
     const { data, error } = await supabase
       .from('qr_codes')
-      .select('batch_id, created_at')
+      .select('batch_id, created_at, id')
       .order('created_at', { ascending: false })
-      .limit(100)
 
     if (error) throw error
     
@@ -123,29 +122,27 @@ const fetchBatches = async () => {
     
     if (!data || data.length === 0) {
       console.warn('No QR code batches found in database')
+      batches.value = []
       return
     }
 
-    const batchesMap = new Map()
-    data
-      .filter((code) => code?.batch_id)
-      .forEach((code) => {
-        const batchId = code.batch_id
-        const createdAt = code.created_at || new Date().toISOString()
-
-        if (batchId && createdAt) {
-          if (!batchesMap.has(batchId)) {
-            batchesMap.set(batchId, {
-              id: batchId,
-              created_at: createdAt,
-            })
-          }
-        }
-      })
-      
-    console.log('Processed batches:', Array.from(batchesMap.values()))
-
-    batches.value = Array.from(batchesMap.values())
+    // Use a Set to track unique batch IDs while preserving order
+    const uniqueBatches = []
+    const seenBatchIds = new Set()
+    
+    for (const code of data) {
+      if (code?.batch_id && !seenBatchIds.has(code.batch_id)) {
+        uniqueBatches.push({
+          id: code.batch_id,
+          created_at: code.created_at || new Date().toISOString(),
+          count: 1
+        })
+        seenBatchIds.add(code.batch_id)
+      }
+    }
+    
+    console.log('Processed batches:', uniqueBatches)
+    batches.value = uniqueBatches
   } catch (error) {
     console.error('Error fetching batches:', error)
     alert('Failed to fetch batches. Please try again.')
