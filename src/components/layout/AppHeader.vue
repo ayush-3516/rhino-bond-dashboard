@@ -24,6 +24,7 @@ const menuAriaLabel = computed(() => (props.isMenuOpen ? 'Close menu' : 'Open me
           <router-link to="/qr-codes" class="nav-item">QR Codes</router-link>
           <router-link to="/events" class="nav-item">Events</router-link>
           <router-link to="/users" class="nav-item">User Management</router-link>
+          <router-link to="/products" class="nav-item">Products</router-link>
           <router-link to="/auth" class="nav-item">Authentication</router-link>
         </div>
         <button
