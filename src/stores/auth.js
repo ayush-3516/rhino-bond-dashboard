@@ -33,6 +33,10 @@ export const useAuthStore = defineStore('auth', () => {
     return true
   })
 
+  const isAdmin = computed(() => {
+    return user.value?.user_metadata?.role === 'admin'
+  })
+
   // Initialize session from storage and validate with Supabase
   const initializeSession = async () => {
     const storedSession = localStorage.getItem('auth_session')
@@ -134,6 +138,7 @@ export const useAuthStore = defineStore('auth', () => {
     session,
     sessionExpiry,
     isAuthenticated,
+    isAdmin,
     setSession,
     clearSession,
     refreshSession,

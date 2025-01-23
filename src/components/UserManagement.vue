@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted } from 'vue'
-import { supabase } from '../supabase'
+import { supabase, withServiceRole } from '../supabase'
 
 const users = ref([])
 const loading = ref(false)
@@ -8,10 +8,12 @@ const loading = ref(false)
 async function fetchUsers() {
   loading.value = true
   try {
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .order('created_at', { ascending: false })
+    const { data, error } = await withServiceRole(async (client) => {
+      return client
+        .from('users')
+        .select('*')
+        .order('created_at', { ascending: false })
+    })
     
     if (error) throw error
     users.value = data
@@ -24,10 +26,12 @@ async function fetchUsers() {
 
 async function toggleAdminConfirmation(user) {
   try {
-    const { error } = await supabase
-      .from('users')
-      .update({ admin_confirmation: !user.admin_confirmation })
-      .eq('id', user.id)
+    const { error } = await withServiceRole(async (client) => {
+      return client
+        .from('users')
+        .update({ admin_confirmation: !user.admin_confirmation })
+        .eq('id', user.id)
+    })
     
     if (error) throw error
     await fetchUsers()

@@ -13,54 +13,21 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div class="app-layout">
+  <div class="app-layout flex flex-col min-h-screen">
     <AppHeader :is-menu-open="isMenuOpen" @toggle-menu="emit('toggle-menu')" />
 
-    <main class="container">
+    <main class="container space-xl">
       <RouterView />
     </main>
 
-    <AppFooter />
+    <AppFooter class="mt-auto" />
   </div>
 </template>
 
 <style scoped>
 .app-layout {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
   background-color: var(--color-background);
   color: var(--color-text);
   scroll-behavior: smooth;
-}
-
-main {
-  margin-top: var(--space-xl);
-  margin-bottom: var(--space-xxl);
-}
-
-.container {
-  padding: var(--space-xl);
-  max-width: 1440px;
-  margin: 0 auto;
-  flex: 1;
-}
-
-@media (max-width: 1440px) {
-  .container {
-    padding: var(--space-xl);
-  }
-}
-
-@media (max-width: 1024px) {
-  .container {
-    padding: var(--space-lg) var(--space-md);
-  }
-}
-
-@media (max-width: 768px) {
-  .container {
-    padding: var(--space-md) var(--space-sm);
-  }
 }
 </style>

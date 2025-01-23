@@ -39,6 +39,12 @@ const router = createRouter({
       component: () => import('../views/ProductManagement.vue'),
       meta: { requiresAuth: true }
     },
+    {
+      path: '/points-airdrop',
+      name: 'points-airdrop',
+      component: () => import('../components/PointsAirdrop.vue'),
+      meta: { requiresAuth: true }
+    },
   ],
 })
 

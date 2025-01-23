@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useAuthStore } from '../../stores/auth'
 
 interface Props {
   isMenuOpen: boolean
@@ -7,6 +8,7 @@ interface Props {
 
 const props = defineProps<Props>()
 const emit = defineEmits(['toggle-menu'])
+const authStore = useAuthStore()
 
 const menuAriaLabel = computed(() => (props.isMenuOpen ? 'Close menu' : 'Open menu'))
 </script>
@@ -25,6 +27,13 @@ const menuAriaLabel = computed(() => (props.isMenuOpen ? 'Close menu' : 'Open me
           <router-link to="/events" class="nav-item">Events</router-link>
           <router-link to="/users" class="nav-item">User Management</router-link>
           <router-link to="/products" class="nav-item">Products</router-link>
+          <router-link 
+            to="/points-airdrop" 
+            class="nav-item"
+            exact-active-class="router-link-exact-active"
+          >
+            Points Airdrop
+          </router-link>
           <router-link to="/auth" class="nav-item">Authentication</router-link>
         </div>
         <button
