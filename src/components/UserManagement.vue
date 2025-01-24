@@ -1,9 +1,12 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { supabase, withServiceRole } from '../supabase'
+import ConfirmModal from './ConfirmModal.vue'
 
 const users = ref([])
 const loading = ref(false)
+const showDeleteModal = ref(false)
+const userToDelete = ref(null)
 
 async function fetchUsers() {
   loading.value = true
@@ -40,6 +43,42 @@ async function toggleAdminConfirmation(user) {
   }
 }
 
+function confirmDelete(user) {
+  userToDelete.value = user
+  showDeleteModal.value = true
+}
+
+async function deleteUser() {
+  const user = userToDelete.value
+  showDeleteModal.value = false
+  try {
+    // Delete related points transactions
+    const { error: pointsError } = await withServiceRole(async (client) => {
+      return client
+        .from('points_transactions')
+        .delete()
+        .eq('user_id', user.id)
+    })
+    
+    if (pointsError) throw pointsError
+    
+    // Delete user
+    const { error: userError } = await withServiceRole(async (client) => {
+      return client
+        .from('users')
+        .delete()
+        .eq('id', user.id)
+    })
+    
+    if (userError) throw userError
+    
+    await fetchUsers()
+  } catch (error) {
+    console.error('Error deleting user:', error)
+    alert('Failed to delete user. Please try again.')
+  }
+}
+
 onMounted(() => {
   fetchUsers()
 })
@@ -53,7 +92,7 @@ onMounted(() => {
       <thead>
         <tr>
           <th>Name</th>
-          <th>Email</th>
+          <th>Phone</th>
           <th>Role</th>
           <th>Admin Confirmation</th>
           <th>Actions</th>
@@ -62,7 +101,7 @@ onMounted(() => {
       <tbody>
         <tr v-for="user in users" :key="user.id">
           <td>{{ user.name }}</td>
-          <td>{{ user.email }}</td>
+          <td>{{ user.phone }}</td>
           <td>{{ user.role }}</td>
           <td>{{ user.admin_confirmation ? 'Confirmed' : 'Pending' }}</td>
           <td>
@@ -72,10 +111,26 @@ onMounted(() => {
             >
               {{ user.admin_confirmation ? 'Revoke' : 'Confirm' }}
             </button>
+            <button 
+              class="delete-btn"
+              @click="confirmDelete(user)"
+            >
+              Delete
+            </button>
           </td>
         </tr>
       </tbody>
     </table>
+
+    <ConfirmModal
+      :visible="showDeleteModal"
+      title="Confirm Delete"
+      message="Are you sure you want to delete this user?"
+      confirm-text="Delete"
+      cancel-text="Cancel"
+      @confirm="deleteUser"
+      @cancel="showDeleteModal = false"
+    />
   </div>
 </template>
 
@@ -107,6 +162,12 @@ button {
 button.confirmed {
   background-color: #4caf50;
   color: white;
+}
+
+button.delete-btn {
+  background-color: #f44336;
+  color: white;
+  margin-left: 8px;
 }
 
 button:hover {
