@@ -55,7 +55,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { supabase, withServiceRole } from '../supabase'
+import { usePointsStore } from '@/stores/points'
 import AppHeader from '@/components/layout/AppHeader.vue'
 const users = ref([])
 const selectedUsers = ref([])
@@ -63,17 +63,11 @@ const points = ref(0)
 const isLoading = ref(false)
 const searchQuery = ref('')
 
+const pointsStore = usePointsStore()
+
 onMounted(async () => {
   try {
-    const { data, error } = await withServiceRole(async (client) => {
-      return client
-        .from('users')
-        .select('*')
-        .order('created_at', { ascending: false })
-    })
-    
-    if (error) throw error
-    users.value = data
+    users.value = await pointsStore.fetchUsers()
   } catch (error) {
     console.error('Error fetching users:', error)
   }
@@ -112,20 +106,16 @@ async function handleAirdrop() {
   
   isLoading.value = true
   try {
-    const { error } = await withServiceRole(async (client) => {
-      return client.rpc('update_points', {
-        user_ids: selectedUsers.value,
-        points: points.value
-      })
+    await pointsStore.airdropPoints({
+      userIds: selectedUsers.value,
+      points: Number(points.value)
     })
-    
-    if (error) throw error
     alert('Points airdropped successfully!')
     selectedUsers.value = []
     points.value = 0
   } catch (error) {
     console.error('Airdrop failed:', error)
-    alert('Airdrop failed. Please try again.')
+    alert(`Airdrop failed: ${error.message}`)
   } finally {
     isLoading.value = false
   }
