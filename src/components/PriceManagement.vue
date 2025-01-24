@@ -29,9 +29,20 @@ onMounted(async () => {
   }
 })
 
+const parseVariation = (variation) => {
+  // Extract numeric value from variation string (e.g. "1kg" -> 1)
+  const match = variation.match(/\d+/)
+  return match ? parseFloat(match[0]) : 0
+}
+
 const currentPrices = computed(() => {
   if (!selectedProduct.value) return []
-  return priceStore.getPrices(selectedProduct.value.id)
+  const prices = priceStore.getPrices(selectedProduct.value.id)
+  return prices.slice().sort((a, b) => {
+    const aVal = parseVariation(a.variation)
+    const bVal = parseVariation(b.variation)
+    return aVal - bVal
+  })
 })
 
 const variationModel = computed({
