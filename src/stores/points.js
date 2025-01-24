@@ -41,6 +41,27 @@ export const usePointsStore = defineStore('points', {
       }
     },
 
+    async searchUsers(query) {
+      try {
+        return await withServiceRole(async (client) => {
+          const { data, error } = await client
+            .from('users')
+            .select('id, name, email, points_balance')
+            .textSearch('fts', query, {
+              type: 'websearch',
+              config: 'english'
+            })
+            .limit(50)
+
+          if (error) throw error
+          return data
+        })
+      } catch (error) {
+        console.error('Error searching users:', error)
+        throw error
+      }
+    },
+
     async airdropPoints({ userIds, points }) {
       try {
         return await withServiceRole(async (client) => {

@@ -1,34 +1,16 @@
 <template>
     <div class="airdrop-container">
       <div class="form-section">
-        <div class="search-controls">
-          <input
-            v-model="searchQuery"
-            type="text"
-            placeholder="Search users..."
-            class="search-input"
-          />
-          <div class="bulk-actions">
-            <button @click="selectAll" class="select-btn">Select All</button>
-            <button @click="clearSelection" class="select-btn">Clear</button>
-          </div>
-        </div>
+        <SearchControls
+          @select-all="selectAll"
+          @clear-selection="clearSelection"
+        />
 
-        <div class="user-list">
-          <div
-            v-for="user in filteredUsers"
-            :key="user.id"
-            class="user-item"
-            :class="{ selected: isSelected(user.id) }"
-            @click="toggleUser(user.id)"
-          >
-            <div class="user-info">
-              <span class="user-name">{{ user.name }}</span>
-              <span class="user-email">{{ user.email }}</span>
-            </div>
-            <span class="user-points">{{ user.points_balance }} pts</span>
-          </div>
-        </div>
+        <UserList
+          :users="users"
+          :selected-users="selectedUsers"
+          @toggle-user="toggleUser"
+        />
 
         <div class="points-control">
           <label for="points">Points to Airdrop:</label>
@@ -51,17 +33,33 @@
         </button>
       </div>
     </div>
+    <ConfirmModal
+      :visible="showModal"
+      :title="modalTitle"
+      :message="modalMessage"
+      :type="modalType"
+      @close="handleModalClose"
+      @confirm="handleModalConfirm"
+      @cancel="handleModalCancel"
+    />
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { usePointsStore } from '@/stores/points'
-import AppHeader from '@/components/layout/AppHeader.vue'
+import ConfirmModal from '@/components/ConfirmModal.vue'
+import UserList from './PointsAirdrop/UserList.vue'
+import SearchControls from './PointsAirdrop/SearchControls.vue'
+
+const showModal = ref(false)
+const isConfirmationModal = ref(false)
+const modalTitle = ref('')
+const modalMessage = ref('')
+const modalType = ref('success')
 const users = ref([])
 const selectedUsers = ref([])
 const points = ref(0)
 const isLoading = ref(false)
-const searchQuery = ref('')
 
 const pointsStore = usePointsStore()
 
@@ -73,17 +71,7 @@ onMounted(async () => {
   }
 })
 
-const filteredUsers = computed(() => {
-  return users.value.filter(user => 
-    user.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchQuery.value.toLowerCase())
-  )
-})
-
-function isSelected(userId) {
-  return selectedUsers.value.includes(userId)
-}
-
+// User selection management
 function toggleUser(userId) {
   const index = selectedUsers.value.indexOf(userId)
   if (index === -1) {
@@ -94,15 +82,37 @@ function toggleUser(userId) {
 }
 
 function selectAll() {
-  selectedUsers.value = filteredUsers.value.map(user => user.id)
+  selectedUsers.value = users.value.map(user => user.id)
 }
 
 function clearSelection() {
   selectedUsers.value = []
 }
 
-async function handleAirdrop() {
-  if (!selectedUsers.value.length || !points.value) return
+// Modal handlers
+function handleModalClose() {
+  showModal.value = false
+  selectedUsers.value = []
+  points.value = 0
+}
+
+function handleModalCancel() {
+  showModal.value = false
+}
+
+// Airdrop initiation
+function handleAirdrop() {
+  if (!selectedUsers.value.length || !points.value || isLoading.value) return
+  
+  modalTitle.value = 'Confirm Airdrop'
+  modalMessage.value = `Are you sure you want to airdrop ${points.value} points to ${selectedUsers.value.length} users?`
+  modalType.value = 'confirm'
+  isConfirmationModal.value = true
+  showModal.value = true
+}
+
+async function executeAirdrop() {
+  if (isLoading.value) return
   
   isLoading.value = true
   try {
@@ -110,15 +120,35 @@ async function handleAirdrop() {
       userIds: selectedUsers.value,
       points: Number(points.value)
     })
-    alert('Points airdropped successfully!')
+    
+    // Close modal after successful airdrop
+    showModal.value = false
+    
+    // Only show success modal if not coming from confirmation
+    if (!isConfirmationModal.value) {
+      modalTitle.value = 'Success'
+      modalMessage.value = 'Points airdropped successfully!'
+      modalType.value = 'success'
+      showModal.value = true
+    }
+    
+    // Clear selections after successful airdrop
     selectedUsers.value = []
     points.value = 0
   } catch (error) {
     console.error('Airdrop failed:', error)
-    alert(`Airdrop failed: ${error.message}`)
+    modalTitle.value = 'Error'
+    modalMessage.value = `Airdrop failed: ${error.message}`
+    modalType.value = 'error'
+    showModal.value = true
   } finally {
     isLoading.value = false
+    isConfirmationModal.value = false
   }
+}
+
+function handleModalConfirm() {
+  executeAirdrop()
 }
 </script>
 
@@ -133,76 +163,6 @@ async function handleAirdrop() {
   display: flex;
   flex-direction: column;
   gap: 20px;
-}
-
-.search-controls {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 15px;
-}
-
-.search-input {
-  flex: 1;
-  padding: 8px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-}
-
-.bulk-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.select-btn {
-  padding: 8px 12px;
-  background-color: #f0f0f0;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.user-list {
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  max-height: 400px;
-  overflow-y: auto;
-}
-
-.user-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px;
-  border-bottom: 1px solid #eee;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.user-item:hover {
-  background-color: #f8f8f8;
-}
-
-.user-item.selected {
-  background-color: #e6f4ff;
-}
-
-.user-info {
-  display: flex;
-  flex-direction: column;
-}
-
-.user-name {
-  font-weight: 500;
-}
-
-.user-email {
-  font-size: 0.9em;
-  color: #666;
-}
-
-.user-points {
-  font-weight: 500;
-  color: #42b983;
 }
 
 .points-control {
