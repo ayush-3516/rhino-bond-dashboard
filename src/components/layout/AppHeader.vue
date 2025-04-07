@@ -27,12 +27,33 @@ const menuAriaLabel = computed(() => (props.isMenuOpen ? 'Close menu' : 'Open me
           <router-link to="/events" class="nav-item">Events</router-link>
           <router-link to="/users" class="nav-item">User Management</router-link>
           <router-link to="/products" class="nav-item">Products</router-link>
-          <router-link 
-            to="/points-airdrop" 
+          <router-link
+            to="/points-airdrop"
             class="nav-item"
             exact-active-class="router-link-exact-active"
           >
             Points Airdrop
+          </router-link>
+          <router-link
+            to="/transactions"
+            class="nav-item"
+            exact-active-class="router-link-exact-active"
+          >
+            Transactions
+          </router-link>
+          <router-link
+            to="/contact-messages"
+            class="nav-item"
+            exact-active-class="router-link-exact-active"
+          >
+            Contact Messages
+          </router-link>
+          <router-link
+            to="/pan-verification"
+            class="nav-item"
+            exact-active-class="router-link-exact-active"
+          >
+            PAN Verification
           </router-link>
           <router-link to="/auth" class="nav-item">Authentication</router-link>
         </div>

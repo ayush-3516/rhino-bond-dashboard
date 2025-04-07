@@ -6,6 +6,18 @@
       <div class="metric-card">
         <h3>Total Users</h3>
         <p>{{ userCount }}</p>
+        <small>{{ kycApprovedCount }} KYC Approved</small>
+      </div>
+
+      <div class="metric-card">
+        <h3>Active Agents</h3>
+        <p>{{ activeAgentsCount }}</p>
+      </div>
+
+      <div class="metric-card">
+        <h3>Points Activity</h3>
+        <p>{{ pointsEarned - pointsRedeemed }}</p>
+        <small>+{{ pointsEarned }} / -{{ pointsRedeemed }}</small>
       </div>
 
       <div class="metric-card">
@@ -14,8 +26,8 @@
       </div>
 
       <div class="metric-card">
-        <h3>Points Redeemed</h3>
-        <p>{{ pointsRedeemed }}</p>
+        <h3>Pending Messages</h3>
+        <p>{{ pendingMessagesCount }}</p>
       </div>
 
       <div class="metric-card">
@@ -31,7 +43,7 @@
       </div>
 
       <div class="chart-card">
-        <h3>Product Redemptions</h3>
+        <h3>Redemption Products</h3>
         <canvas ref="redemptionsChart"></canvas>
       </div>
     </div>
@@ -44,109 +56,147 @@ import Chart from 'chart.js/auto'
 import { supabase } from '../supabase'
 
 const userCount = ref(0)
+const kycApprovedCount = ref(0)
+const activeAgentsCount = ref(0)
 const activeQrCodes = ref(0)
+const pointsEarned = ref(0)
 const pointsRedeemed = ref(0)
+const pendingMessagesCount = ref(0)
 const upcomingEventsCount = ref(0)
 const pointsChart = ref(null)
 const redemptionsChart = ref(null)
+const isLoading = ref(true)
 
 // Fetch initial data
 onMounted(async () => {
-  await fetchMetrics()
-  await setupCharts()
+  try {
+    await fetchMetrics()
+    await setupCharts()
+  } catch (error) {
+    console.error('Dashboard error:', error)
+  } finally {
+    isLoading.value = false
+  }
 })
 
 async function fetchMetrics() {
-  // Get user count
-  const { count: userCountVal } = await supabase.from('users').select('*', { count: 'exact' })
+  // Get user counts
+  const [
+    { count: userCountVal },
+    { count: kycApprovedVal },
+    { count: activeAgentsVal },
+    { count: qrCount },
+    { data: pointsData },
+    { count: messagesCount },
+    { count: eventsCount }
+  ] = await Promise.all([
+    supabase.from('users').select('*', { count: 'exact' }),
+    supabase.from('users').select('*', { count: 'exact' }).eq('kyc_status', true),
+    supabase.from('users').select('*', { count: 'exact' }).eq('role', 'agent').eq('is_active', true),
+    supabase.from('qr_codes').select('*', { count: 'exact' }).eq('is_active', true),
+    supabase.from('points_transactions').select('points, type'),
+    supabase.from('contact_messages').select('*', { count: 'exact' }).eq('is_resolved', false),
+    supabase.from('events').select('*', { count: 'exact' }).gt('end_date', new Date().toISOString()).eq('is_active', true)
+  ])
+
   userCount.value = userCountVal
-
-  // Get active QR codes
-  const { count: qrCount } = await supabase
-    .from('qr_codes')
-    .select('*', { count: 'exact' })
-    .eq('is_active', true)
+  kycApprovedCount.value = kycApprovedVal
+  activeAgentsCount.value = activeAgentsVal
   activeQrCodes.value = qrCount
-
-  // Get points redeemed
-  const { data: redeemedData } = await supabase
-    .from('points_transactions')
-    .select('points')
-    .eq('type', 'redeem')
-  pointsRedeemed.value = (redeemedData || []).reduce((sum, t) => sum + t.points, 0)
-
-  // Get upcoming events
-  const { count: eventsCount } = await supabase
-    .from('events')
-    .select('*', { count: 'exact' })
-    .gt('end_date', new Date().toISOString())
-    .eq('is_active', true)
+  pendingMessagesCount.value = messagesCount
   upcomingEventsCount.value = eventsCount
+
+  // Calculate points
+  pointsEarned.value = (pointsData || [])
+    .filter(t => t.type === 'earn')
+    .reduce((sum, t) => sum + t.points, 0)
+
+  pointsRedeemed.value = (pointsData || [])
+    .filter(t => t.type === 'redeem')
+    .reduce((sum, t) => sum + t.points, 0)
 }
 
 async function setupCharts() {
   // Fetch points activity data
   const { data: pointsData } = await supabase
     .from('points_transactions')
-    .select('created_at, points')
+    .select('created_at, points, type')
     .order('created_at', { ascending: true })
 
-  // Group points by month
+  // Group points by month and type
   const pointsByMonth = (pointsData || []).reduce((acc, transaction) => {
     const month = new Date(transaction.created_at).toLocaleString('default', { month: 'short' })
-    acc[month] = (acc[month] || 0) + transaction.points
+    if (!acc[month]) {
+      acc[month] = { earn: 0, redeem: 0 }
+    }
+    acc[month][transaction.type] += transaction.points
     return acc
   }, {})
+
+  const months = Object.keys(pointsByMonth)
 
   new Chart(pointsChart.value, {
-    type: 'line',
-    data: {
-      labels: Object.keys(pointsByMonth),
-      datasets: [
-        {
-          label: 'Points Activity',
-          data: Object.values(pointsByMonth),
-          fill: false,
-          borderColor: 'rgb(75, 192, 192)',
-          tension: 0.1,
-        },
-      ],
-    },
-  })
-
-  // Fetch product redemptions data
-  const { data: redemptionsData } = await supabase.from('redemptions').select('product_name')
-
-  // Count redemptions by product
-  const redemptionsByProduct = (redemptionsData || []).reduce((acc, redemption) => {
-    acc[redemption.product_name] = (acc[redemption.product_name] || 0) + 1
-    return acc
-  }, {})
-
-  new Chart(redemptionsChart.value, {
     type: 'bar',
     data: {
-      labels: Object.keys(redemptionsByProduct),
+      labels: months,
       datasets: [
         {
-          label: 'Redemptions',
-          data: Object.values(redemptionsByProduct),
-          backgroundColor: [
-            'rgba(255, 99, 132, 0.2)',
-            'rgba(54, 162, 235, 0.2)',
-            'rgba(255, 206, 86, 0.2)',
-            'rgba(75, 192, 192, 0.2)',
-          ],
-          borderColor: [
-            'rgba(255, 99, 132, 1)',
-            'rgba(54, 162, 235, 1)',
-            'rgba(255, 206, 86, 1)',
-            'rgba(75, 192, 192, 1)',
-          ],
-          borderWidth: 1,
+          label: 'Points Earned',
+          data: months.map(m => pointsByMonth[m].earn),
+          backgroundColor: 'rgba(54, 162, 235, 0.5)',
+          borderColor: 'rgba(54, 162, 235, 1)',
+          borderWidth: 1
         },
-      ],
+        {
+          label: 'Points Redeemed',
+          data: months.map(m => pointsByMonth[m].redeem),
+          backgroundColor: 'rgba(255, 99, 132, 0.5)',
+          borderColor: 'rgba(255, 99, 132, 1)',
+          borderWidth: 1
+        }
+      ]
     },
+    options: {
+      responsive: true,
+      scales: {
+        x: { stacked: true },
+        y: { stacked: true }
+      }
+    }
+  })
+
+  // Fetch redemption products data
+  const { data: productsData } = await supabase
+    .from('redemption_products')
+    .select('name, points_required')
+    .eq('is_active', true)
+
+  new Chart(redemptionsChart.value, {
+    type: 'doughnut',
+    data: {
+      labels: productsData?.map(p => p.name) || [],
+      datasets: [{
+        label: 'Points Required',
+        data: productsData?.map(p => p.points_required) || [],
+        backgroundColor: [
+          '#FF6384',
+          '#36A2EB',
+          '#FFCE56',
+          '#4BC0C0',
+          '#9966FF',
+          '#FF9F40'
+        ],
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: {
+          position: 'right'
+        }
+      }
+    }
   })
 }
 </script>
@@ -158,8 +208,8 @@ async function setupCharts() {
 
 .metrics-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.5rem;
   margin: 2rem 0;
 }
 
@@ -167,7 +217,12 @@ async function setupCharts() {
   background: white;
   padding: 1.5rem;
   border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s;
+}
+
+.metric-card:hover {
+  transform: translateY(-2px);
 }
 
 .metric-card h3 {
@@ -180,11 +235,19 @@ async function setupCharts() {
   margin: 0;
   font-size: 2rem;
   font-weight: bold;
+  color: var(--primary-color);
+}
+
+.metric-card small {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.8rem;
+  color: #888;
 }
 
 .charts {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
   gap: 2rem;
   margin-top: 2rem;
 }
@@ -193,12 +256,19 @@ async function setupCharts() {
   background: white;
   padding: 1.5rem;
   border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .chart-card h3 {
   margin: 0 0 1rem 0;
   font-size: 1rem;
   color: #666;
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
 }
 </style>

@@ -17,7 +17,7 @@ async function fetchUsers() {
         .select('*')
         .order('created_at', { ascending: false })
     })
-    
+
     if (error) throw error
     users.value = data
   } catch (error) {
@@ -35,11 +35,27 @@ async function toggleAdminConfirmation(user) {
         .update({ admin_confirmation: !user.admin_confirmation })
         .eq('id', user.id)
     })
-    
+
     if (error) throw error
     await fetchUsers()
   } catch (error) {
     console.error('Error updating user:', error)
+  }
+}
+
+async function toggleKycStatus(user) {
+  try {
+    const { error } = await withServiceRole(async (client) => {
+      return client
+        .from('users')
+        .update({ kyc_status: !user.kyc_status })
+        .eq('id', user.id)
+    })
+
+    if (error) throw error
+    await fetchUsers()
+  } catch (error) {
+    console.error('Error updating KYC status:', error)
   }
 }
 
@@ -59,9 +75,9 @@ async function deleteUser() {
         .delete()
         .eq('user_id', user.id)
     })
-    
+
     if (pointsError) throw pointsError
-    
+
     // Delete user
     const { error: userError } = await withServiceRole(async (client) => {
       return client
@@ -69,9 +85,9 @@ async function deleteUser() {
         .delete()
         .eq('id', user.id)
     })
-    
+
     if (userError) throw userError
-    
+
     await fetchUsers()
   } catch (error) {
     console.error('Error deleting user:', error)
@@ -95,6 +111,7 @@ onMounted(() => {
           <th>Phone</th>
           <th>Role</th>
           <th>Admin Confirmation</th>
+          <th>KYC Status</th>
           <th>Actions</th>
         </tr>
       </thead>
@@ -104,14 +121,22 @@ onMounted(() => {
           <td>{{ user.phone }}</td>
           <td>{{ user.role }}</td>
           <td>{{ user.admin_confirmation ? 'Confirmed' : 'Pending' }}</td>
+          <td>{{ user.kyc_status ? 'Verified' : 'Pending' }}</td>
           <td>
-            <button 
+            <button
               @click="toggleAdminConfirmation(user)"
               :class="{ 'confirmed': user.admin_confirmation }"
             >
               {{ user.admin_confirmation ? 'Revoke' : 'Confirm' }}
             </button>
-            <button 
+            <button
+              @click="toggleKycStatus(user)"
+              :class="{ 'verified': user.kyc_status }"
+              style="margin-left: 8px;"
+            >
+              {{ user.kyc_status ? 'Reject KYC' : 'Approve KYC' }}
+            </button>
+            <button
               class="delete-btn"
               @click="confirmDelete(user)"
             >
@@ -161,6 +186,11 @@ button {
 
 button.confirmed {
   background-color: #4caf50;
+  color: white;
+}
+
+button.verified {
+  background-color: #2196F3;
   color: white;
 }
 

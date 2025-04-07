@@ -103,4 +103,60 @@ const withServiceRole = async (operation) => {
   }
 }
 
-export { supabase, withServiceRole, verifyServiceRole }
+// Contact Messages Methods
+const fetchContactMessages = async (filters = {}) => {
+  const { topic, is_resolved, start_date, end_date, search } = filters
+
+  let query = supabaseService
+    .from('contact_messages')
+    .select('*, users(name, email, phone)')
+    .order('created_at', { ascending: false })
+
+  if (topic) query = query.eq('topic', topic)
+  if (is_resolved !== undefined) query = query.eq('is_resolved', is_resolved)
+  if (start_date && end_date) {
+    query = query.gte('created_at', start_date).lte('created_at', end_date)
+  }
+  if (search) {
+    query = query.or(
+      `name.ilike.%${search}%,email.ilike.%${search}%,message.ilike.%${search}%`
+    )
+  }
+
+  const { data, error } = await query
+  if (error) throw error
+  return data
+}
+
+const updateContactMessage = async (id, updates) => {
+  const { data, error } = await supabaseService
+    .from('contact_messages')
+    .update({
+      ...updates,
+      replied_at: updates.admin_reply ? new Date().toISOString() : null
+    })
+    .eq('id', id)
+    .select()
+
+  if (error) throw error
+  return data[0]
+}
+
+const deleteContactMessage = async (id) => {
+  const { error } = await supabaseService
+    .from('contact_messages')
+    .delete()
+    .eq('id', id)
+
+  if (error) throw error
+  return true
+}
+
+export {
+  deleteContactMessage,
+  supabase,
+  withServiceRole,
+  verifyServiceRole,
+  fetchContactMessages,
+  updateContactMessage
+}

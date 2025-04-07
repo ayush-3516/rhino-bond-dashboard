@@ -45,22 +45,40 @@ const router = createRouter({
       component: () => import('../components/PointsAirdrop.vue'),
       meta: { requiresAuth: true }
     },
+    {
+      path: '/contact-messages',
+      name: 'contact-messages',
+      component: () => import('../views/ContactMessagesView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/transactions',
+      name: 'transactions',
+      component: () => import('../views/TransactionsView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/pan-verification',
+      name: 'pan-verification',
+      component: () => import('../views/PanCardVerificationView.vue'),
+      meta: { requiresAuth: true }
+    },
   ],
 })
 
 router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore()
-  
+
   if (to.meta.requiresAuth) {
     // Wait for session initialization to complete
     await authStore.initializeSession()
-    
+
     if (!authStore.isAuthenticated) {
       next({ name: 'phone-auth', query: { redirect: to.fullPath } })
       return
     }
   }
-  
+
   next()
 })
 
