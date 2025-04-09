@@ -152,11 +152,68 @@ const deleteContactMessage = async (id) => {
   return true
 }
 
+// Agent Code Methods
+const assignAgentCode = async (agent_user_id) => {
+  try {
+    // Verify user is an agent and check if they already have a code
+    const { data: user, error: userError } = await supabaseService
+      .from('users')
+      .select('role, agent_code')
+      .eq('id', agent_user_id)
+      .single()
+
+    if (userError) throw userError
+    if (user.role !== 'agent') throw new Error('User is not an agent')
+    if (user.agent_code) throw new Error('Agent already has a code assigned')
+
+    // Generate new code
+    const code = Math.random().toString(36).substring(2, 8).toUpperCase()
+
+    // Insert into agent_codes table
+    const { error: codeError } = await supabaseService
+      .from('agent_codes')
+      .insert({
+        code,
+        created_by: agent_user_id
+      })
+
+    if (codeError) throw codeError
+
+    // Update user's agent_code field
+    const { error: userUpdateError } = await supabaseService
+      .from('users')
+      .update({
+        agent_code: code,
+        assigned_by: (await supabaseService.auth.getSession()).data.session?.user.id
+      })
+      .eq('id', agent_user_id)
+
+    if (userUpdateError) throw userUpdateError
+
+    return code
+  } catch (error) {
+    console.error('Error in assignAgentCode:', error)
+    throw error
+  }
+}
+
+const fetchAgentCodes = async () => {
+  const { data, error } = await supabaseService
+    .from('agent_codes')
+    .select('code, is_active, created_at, users(name, email)')
+    .order('created_at', { ascending: false })
+
+  if (error) throw error
+  return data
+}
+
 export {
   deleteContactMessage,
   supabase,
   withServiceRole,
   verifyServiceRole,
   fetchContactMessages,
-  updateContactMessage
+  updateContactMessage,
+  assignAgentCode,
+  fetchAgentCodes
 }

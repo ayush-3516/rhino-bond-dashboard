@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted } from 'vue'
-import { supabase, withServiceRole } from '../supabase'
+import { supabase, withServiceRole, assignAgentCode } from '../supabase'
 import ConfirmModal from './ConfirmModal.vue'
 
 const users = ref([])
@@ -43,19 +43,32 @@ async function toggleAdminConfirmation(user) {
   }
 }
 
-async function toggleKycStatus(user) {
+async function promoteToAgent(user) {
   try {
     const { error } = await withServiceRole(async (client) => {
       return client
         .from('users')
-        .update({ kyc_status: !user.kyc_status })
+        .update({ role: 'agent' })
         .eq('id', user.id)
     })
 
     if (error) throw error
     await fetchUsers()
+    alert('User promoted to agent successfully')
   } catch (error) {
-    console.error('Error updating KYC status:', error)
+    console.error('Error promoting user to agent:', error)
+    alert('Failed to promote user: ' + error.message)
+  }
+}
+
+async function handleAssignCode(user) {
+  try {
+    const code = await assignAgentCode(user.id)
+    await fetchUsers()
+    alert(`Agent code assigned: ${code}`)
+  } catch (error) {
+    console.error('Error assigning agent code:', error)
+    alert('Failed to assign agent code: ' + error.message)
   }
 }
 
@@ -110,8 +123,8 @@ onMounted(() => {
           <th>Name</th>
           <th>Phone</th>
           <th>Role</th>
+          <th>Agent Code</th>
           <th>Admin Confirmation</th>
-          <th>KYC Status</th>
           <th>Actions</th>
         </tr>
       </thead>
@@ -120,21 +133,21 @@ onMounted(() => {
           <td>{{ user.name }}</td>
           <td>{{ user.phone }}</td>
           <td>{{ user.role }}</td>
+          <td>{{ user.agent_code || 'None' }}</td>
           <td>{{ user.admin_confirmation ? 'Confirmed' : 'Pending' }}</td>
-          <td>{{ user.kyc_status ? 'Verified' : 'Pending' }}</td>
           <td>
             <button
-              @click="toggleAdminConfirmation(user)"
-              :class="{ 'confirmed': user.admin_confirmation }"
+              v-if="user.role === 'user'"
+              @click="promoteToAgent(user)"
+              class="promote-btn"
             >
-              {{ user.admin_confirmation ? 'Revoke' : 'Confirm' }}
+              Promote to Agent
             </button>
             <button
-              @click="toggleKycStatus(user)"
-              :class="{ 'verified': user.kyc_status }"
-              style="margin-left: 8px;"
+              v-if="(user.role === 'agent' || user.role === 'admin') && !user.agent_code"
+              @click="handleAssignCode(user)"
             >
-              {{ user.kyc_status ? 'Reject KYC' : 'Approve KYC' }}
+              Generate Code
             </button>
             <button
               class="delete-btn"

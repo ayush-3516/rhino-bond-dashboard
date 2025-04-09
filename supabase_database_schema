@@ -1,0 +1,164 @@
+create table public.users (
+  id uuid not null default auth.uid (),
+  name text not null,
+  email text not null,
+  phone text null,
+  pan_card text null,
+  kyc_status boolean null default false,
+  points_balance integer null default 0,
+  role text null default 'user'::text,
+  is_active boolean null default true,
+  created_at timestamp with time zone null default now(),
+  admin_confirmation boolean null default false,
+  device_token text null,
+  agent_code text null,
+  assigned_by uuid null,
+  onboarded_by uuid null,
+  constraint users_pkey primary key (id),
+  constraint users_email_key unique (email),
+  constraint users_assigned_by_fkey foreign KEY (assigned_by) references users (id) on delete set null,
+  constraint users_onboarded_by_fkey foreign KEY (onboarded_by) references users (id) on delete set null,
+  constraint users_role_check check (
+    (
+      role = any (array['user'::text, 'admin'::text, 'agent'::text])
+    )
+  )
+) TABLESPACE pg_default;
+
+create table public.redemption_products (
+  id uuid not null default extensions.uuid_generate_v4 (),
+  name text not null,
+  description text null,
+  points_required integer not null,
+  is_active boolean null default true,
+  stock integer not null,
+  created_at timestamp with time zone null default now(),
+  constraint redemption_products_pkey primary key (id)
+) TABLESPACE pg_default;
+
+create table public.qr_codes (
+  id uuid not null default extensions.uuid_generate_v4 (),
+  batch_id uuid not null,
+  product_id uuid null,
+  points_value integer not null,
+  is_scanned boolean null default false,
+  scanned_by uuid null,
+  scanned_at timestamp with time zone null,
+  is_active boolean null default true,
+  created_by uuid null,
+  created_at timestamp with time zone null default now(),
+  manual_identifier text not null,
+  constraint qr_codes_pkey primary key (id),
+  constraint qr_codes_manual_identifier_key unique (manual_identifier),
+  constraint qr_codes_created_by_fkey foreign KEY (created_by) references users (id),
+  constraint qr_codes_product_id_fkey foreign KEY (product_id) references products (id),
+  constraint qr_codes_scanned_by_fkey foreign KEY (scanned_by) references users (id)
+) TABLESPACE pg_default;
+
+create table public.products (
+  id uuid not null default extensions.uuid_generate_v4 (),
+  name text not null,
+  description text null,
+  points_value integer not null,
+  is_active boolean null default true,
+  created_at timestamp with time zone null default now(),
+  constraint products_pkey primary key (id)
+) TABLESPACE pg_default;
+
+create table public.product_prices (
+  id uuid not null default extensions.uuid_generate_v4 (),
+  product_id uuid not null,
+  variation text not null,
+  price numeric(10, 2) not null,
+  created_at timestamp with time zone null default now(),
+  constraint product_prices_pkey primary key (id),
+  constraint product_prices_product_id_fkey foreign KEY (product_id) references products (id) on delete CASCADE
+) TABLESPACE pg_default;
+
+create table public.points_transactions (
+  id uuid not null default extensions.uuid_generate_v4 (),
+  user_id uuid null,
+  type text not null,
+  points integer not null,
+  qr_code_id uuid null,
+  product_id uuid null,
+  timestamp timestamp with time zone null default now(),
+  agent_id uuid null,
+  constraint points_transactions_pkey primary key (id),
+  constraint points_transactions_agent_fkey foreign KEY (agent_id) references users (id) on delete set null,
+  constraint points_transactions_product_id_fkey foreign KEY (product_id) references redemption_products (id),
+  constraint points_transactions_qr_code_id_fkey foreign KEY (qr_code_id) references qr_codes (id),
+  constraint points_transactions_user_id_fkey foreign KEY (user_id) references users (id) on update CASCADE on delete CASCADE,
+  constraint points_transactions_type_check check (
+    (
+      type = any (
+        array['earn'::text, 'redeem'::text, 'airdrop'::text]
+      )
+    )
+  )
+) TABLESPACE pg_default;
+
+create table public.notifications (
+  id uuid not null default extensions.uuid_generate_v4 (),
+  user_id uuid null,
+  title text not null,
+  body text not null,
+  image_url text null,
+  is_read boolean null default false,
+  sent_at timestamp with time zone not null default now(),
+  constraint notifications_pkey primary key (id),
+  constraint notifications_user_id_fkey foreign KEY (user_id) references users (id)
+) TABLESPACE pg_default;
+
+create table public.events (
+  id uuid not null default extensions.uuid_generate_v4 (),
+  title text not null,
+  description text null,
+  image_url text null,
+  start_date timestamp with time zone not null,
+  end_date timestamp with time zone not null,
+  is_active boolean null default true,
+  created_at timestamp with time zone null default now(),
+  created_by uuid null,
+  constraint events_pkey primary key (id),
+  constraint events_created_by_fkey foreign KEY (created_by) references users (id)
+) TABLESPACE pg_default;
+
+create index IF not exists events_active_date_idx on public.events using btree (is_active, end_date) TABLESPACE pg_default;
+
+create table public.contact_messages (
+  id uuid not null default extensions.uuid_generate_v4 (),
+  name text not null,
+  email text not null,
+  topic text not null,
+  message text not null,
+  created_at timestamp with time zone not null default now(),
+  user_id uuid null,
+  is_resolved boolean null default false,
+  admin_reply text null,
+  replied_at timestamp with time zone null,
+  constraint contact_messages_pkey primary key (id),
+  constraint contact_messages_user_id_fkey foreign KEY (user_id) references users (id) on delete set null,
+  constraint contact_messages_topic_check check (
+    (
+      topic = any (
+        array[
+          'General Inquiry'::text,
+          'Technical Support'::text,
+          'Account Issues'::text,
+          'Rewards Program'::text,
+          'Other Topic'::text
+        ]
+      )
+    )
+  )
+) TABLESPACE pg_default;
+
+create table public.agent_codes (
+  code text not null,
+  created_by uuid not null,
+  is_active boolean null default true,
+  created_at timestamp with time zone null default now(),
+  constraint agent_codes_pkey primary key (code),
+  constraint agent_codes_created_by_fkey foreign KEY (created_by) references users (id) on delete CASCADE
+) TABLESPACE pg_default;
