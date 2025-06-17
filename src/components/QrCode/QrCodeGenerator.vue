@@ -28,6 +28,25 @@ import { ref } from 'vue'
 import { supabase, withServiceRole } from '../../supabase'
 import QRCode from 'qrcode'
 
+// UUID generation fallback
+const generateUUID = () => {
+  try {
+    if (window.crypto && window.crypto.randomUUID) {
+      return window.crypto.randomUUID()
+    }
+    // Fallback for environments without crypto.randomUUID
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = Math.random() * 16 | 0
+      const v = c === 'x' ? r : (r & 0x3 | 0x8)
+      return v.toString(16)
+    })
+  } catch (e) {
+    console.warn('UUID generation error:', e)
+    // Simple fallback
+    return Date.now().toString(36) + Math.random().toString(36).substring(2)
+  }
+}
+
 const emit = defineEmits(['codes-generated'])
 
 const productId = ref('')
@@ -51,7 +70,7 @@ const fetchProducts = async () => {
 }
 
 const generateManualIdentifier = () => {
-  const randomHash = crypto.randomUUID().replace(/-/g, '').slice(0, 8)
+  const randomHash = generateUUID().replace(/-/g, '').slice(0, 8)
   return `QR-${randomHash}`
 }
 
@@ -76,12 +95,12 @@ const generateQRCodes = async () => {
       throw new Error('Invalid product selected')
     }
 
-    const batchId = crypto.randomUUID()
+    const batchId = generateUUID()
     const qrCodes = []
 
     // Generate QR codes and store in database
     for (let i = 0; i < quantity.value; i++) {
-      const codeId = crypto.randomUUID()
+      const codeId = generateUUID()
       const codeData = JSON.stringify({
         productId: product.id,
         pointsValue: product.points_value,

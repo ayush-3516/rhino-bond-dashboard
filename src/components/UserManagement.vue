@@ -61,6 +61,24 @@ async function promoteToAgent(user) {
   }
 }
 
+async function demoteToUser(user) {
+  try {
+    const { error } = await withServiceRole(async (client) => {
+      return client
+        .from('users')
+        .update({ role: 'user' })
+        .eq('id', user.id)
+    })
+
+    if (error) throw error
+    await fetchUsers()
+    alert('User demoted to regular user successfully')
+  } catch (error) {
+    console.error('Error demoting user:', error)
+    alert('Failed to demote user: ' + error.message)
+  }
+}
+
 async function handleAssignCode(user) {
   try {
     const code = await assignAgentCode(user.id)
@@ -136,25 +154,45 @@ onMounted(() => {
           <td>{{ user.agent_code || 'None' }}</td>
           <td>{{ user.admin_confirmation ? 'Confirmed' : 'Pending' }}</td>
           <td>
-            <button
-              v-if="user.role === 'user'"
-              @click="promoteToAgent(user)"
-              class="promote-btn"
-            >
-              Promote to Agent
-            </button>
-            <button
-              v-if="(user.role === 'agent' || user.role === 'admin') && !user.agent_code"
-              @click="handleAssignCode(user)"
-            >
-              Generate Code
-            </button>
-            <button
-              class="delete-btn"
-              @click="confirmDelete(user)"
-            >
-              Delete
-            </button>
+            <div class="dropdown">
+              <button class="dropdown-toggle">Actions</button>
+              <div class="dropdown-content">
+                <button
+                  v-if="user.role === 'user'"
+                  @click="promoteToAgent(user)"
+                  class="dropdown-item"
+                >
+                  Promote to Agent
+                </button>
+                <button
+                  v-if="user.role === 'agent'"
+                  @click="demoteToUser(user)"
+                  class="dropdown-item"
+                >
+                  Demote to User
+                </button>
+                <button
+                  v-if="!user.admin_confirmation"
+                  @click="toggleAdminConfirmation(user)"
+                  class="dropdown-item confirm-item"
+                >
+                  Confirm User
+                </button>
+                <button
+                  v-if="(user.role === 'agent' || user.role === 'admin') && !user.agent_code"
+                  @click="handleAssignCode(user)"
+                  class="dropdown-item"
+                >
+                  Generate Code
+                </button>
+                <button
+                  @click="confirmDelete(user)"
+                  class="dropdown-item delete-item"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
           </td>
         </tr>
       </tbody>
@@ -215,5 +253,104 @@ button.delete-btn {
 
 button:hover {
   opacity: 0.8;
+}
+
+.dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.dropdown-toggle {
+  padding: 8px 16px;
+  background-color: #f5f5f5;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #333;
+}
+
+.dropdown-toggle:hover {
+  background-color: #e9e9e9;
+  border-color: #ccc;
+}
+
+.dropdown-toggle::after {
+  content: "▼";
+  font-size: 0.7em;
+  margin-left: 4px;
+}
+
+.dropdown-content {
+  display: none;
+  position: absolute;
+  background-color: white;
+  min-width: 200px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  border-radius: 6px;
+  z-index: 10;
+  right: 0;
+  margin-top: 4px;
+  overflow: hidden;
+  border: 1px solid #eee;
+}
+
+.dropdown:hover .dropdown-content {
+  display: block;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.dropdown-item {
+  width: 100%;
+  padding: 10px 16px;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.9em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid #f0f0f0;
+  transition: all 0.2s ease;
+  color: #333;
+}
+
+.dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.dropdown-item:hover {
+  background-color: #f8f8f8;
+}
+
+.dropdown-item i {
+  width: 16px;
+  text-align: center;
+}
+
+.delete-item {
+  color: #f44336;
+}
+
+.delete-item:hover {
+  background-color: #ffeeee;
+}
+
+.confirm-item {
+  color: #4caf50;
+}
+
+.confirm-item:hover {
+  background-color: #f0fff0;
 }
 </style>
