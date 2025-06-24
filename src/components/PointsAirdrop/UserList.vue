@@ -1,5 +1,8 @@
 <template>
   <div class="user-list">
+    <div v-if="users.length === 0" class="no-results">
+      No users found. Try a different search term.
+    </div>
     <div
       v-for="user in users"
       :key="user.id"
@@ -11,7 +14,7 @@
         <span class="user-name">{{ user.name }}</span>
         <span class="user-email">{{ user.email }}</span>
       </div>
-      <span class="user-points">{{ user.points_balance }} pts</span>
+      <span class="user-points">{{ user.points_balance || 0 }} pts</span>
     </div>
   </div>
 </template>
@@ -84,5 +87,12 @@ function toggleUser(userId) {
 .user-points {
   font-weight: 500;
   color: #42b983;
+}
+
+.no-results {
+  padding: 20px;
+  text-align: center;
+  color: #666;
+  font-style: italic;
 }
 </style>

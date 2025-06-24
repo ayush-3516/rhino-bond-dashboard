@@ -7,6 +7,20 @@ const users = ref([])
 const loading = ref(false)
 const showDeleteModal = ref(false)
 const userToDelete = ref(null)
+const copySuccess = ref(null)
+
+// Function to copy text to clipboard
+async function copyToClipboard(text, userId) {
+  try {
+    await navigator.clipboard.writeText(text);
+    copySuccess.value = userId;
+    setTimeout(() => {
+      copySuccess.value = null;
+    }, 2000);
+  } catch (err) {
+    console.error('Failed to copy: ', err);
+  }
+}
 
 async function fetchUsers() {
   loading.value = true
@@ -14,7 +28,7 @@ async function fetchUsers() {
     const { data, error } = await withServiceRole(async (client) => {
       return client
         .from('users')
-        .select('*')
+        .select('*, points_balance')
         .order('created_at', { ascending: false })
     })
 
@@ -138,9 +152,11 @@ onMounted(() => {
     <table v-else>
       <thead>
         <tr>
+          <th>User ID</th>
           <th>Name</th>
           <th>Phone</th>
           <th>Role</th>
+          <th>Points</th>
           <th>Agent Code</th>
           <th>Admin Confirmation</th>
           <th>Actions</th>
@@ -148,9 +164,19 @@ onMounted(() => {
       </thead>
       <tbody>
         <tr v-for="user in users" :key="user.id">
+          <td class="user-id-cell" @click="copyToClipboard(user.id, user.id)">
+            <div class="copy-container">
+              <span :class="{ copied: copySuccess === user.id }" class="truncated-id">{{ user.id.substring(0, 8) }}...</span>
+              <span class="copy-icon">📋</span>
+              <span v-if="copySuccess === user.id" class="copy-success">Copied!</span>
+            </div>
+          </td>
           <td>{{ user.name }}</td>
           <td>{{ user.phone }}</td>
           <td>{{ user.role }}</td>
+          <td class="points-cell">
+            <div class="points-value">{{ user.points_balance || 0 }}</div>
+          </td>
           <td>{{ user.agent_code || 'None' }}</td>
           <td>{{ user.admin_confirmation ? 'Confirmed' : 'Pending' }}</td>
           <td>
@@ -190,6 +216,13 @@ onMounted(() => {
                   class="dropdown-item delete-item"
                 >
                   Delete
+                </button>
+                <button
+                  @click="copyToClipboard(user.id, user.id)"
+                  class="dropdown-item"
+                >
+                  Copy ID <span class="dropdown-id-badge">{{ user.id.substring(0, 5) }}...</span>
+                  <span v-if="copySuccess === user.id" class="copy-success-dropdown">✓</span>
                 </button>
               </div>
             </div>
@@ -352,5 +385,121 @@ button:hover {
 
 .confirm-item:hover {
   background-color: #f0fff0;
+}
+
+/* User ID copy functionality styles */
+.user-id-cell {
+  cursor: pointer;
+  position: relative;
+  user-select: all;
+  transition: all 0.2s ease;
+}
+
+.copy-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+}
+
+.truncated-id {
+  font-family: 'Courier New', monospace;
+  font-size: 0.9em;
+  background-color: #f5f5f5;
+  border-radius: 4px;
+  padding: 4px 8px;
+  border: 1px solid #eee;
+  color: #555;
+  transition: all 0.2s ease;
+  letter-spacing: 0.5px;
+}
+
+.copy-icon {
+  font-size: 0.9em;
+  opacity: 0;
+  margin-left: 0;
+  transition: opacity 0.2s ease;
+}
+
+.user-id-cell:hover .truncated-id {
+  background-color: #e9f5fe;
+  border-color: #cce5ff;
+  color: #0066cc;
+}
+
+.user-id-cell:hover .copy-icon {
+  opacity: 0.8;
+}
+
+.copy-success {
+  position: absolute;
+  top: -24px;
+  left: 0;
+  background-color: #4caf50;
+  color: white;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 0.8em;
+  font-weight: 500;
+  animation: fadeOut 2s forwards;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.copied {
+  background-color: #e8f5e9 !important;
+  border-color: #a5d6a7 !important;
+  color: #2e7d32 !important;
+}
+
+@keyframes fadeOut {
+  0% { opacity: 1; }
+  70% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* Points cell styling */
+.points-cell {
+  position: relative;
+}
+
+.points-value {
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f0f8ff;
+  color: #0066cc;
+  border-radius: 16px;
+  padding: 4px 12px;
+  border: 1px solid #cce5ff;
+  font-size: 14px;
+  min-width: 60px;
+  text-align: center;
+}
+
+.points-value::before {
+  content: "★";
+  margin-right: 5px;
+  color: #ffc107;
+  font-size: 12px;
+}
+
+.dropdown-id-badge {
+  display: inline-block;
+  background-color: #eee;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-size: 0.8em;
+  color: #666;
+  margin-left: 5px;
+  font-family: 'Courier New', monospace;
+  letter-spacing: 0.5px;
+}
+
+.copy-success-dropdown {
+  color: #4caf50;
+  font-weight: bold;
+  margin-left: 5px;
+  animation: fadeOut 2s forwards;
 }
 </style>

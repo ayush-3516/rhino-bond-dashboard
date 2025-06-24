@@ -2,12 +2,13 @@
     <div class="airdrop-container">
       <div class="form-section">
         <SearchControls
+          @search="handleSearch"
           @select-all="selectAll"
           @clear-selection="clearSelection"
         />
 
         <UserList
-          :users="users"
+          :users="filteredUsers"
           :selected-users="selectedUsers"
           @toggle-user="toggleUser"
         />
@@ -45,7 +46,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { usePointsStore } from '@/stores/points'
 import ConfirmModal from '@/components/ConfirmModal.vue'
 import UserList from './PointsAirdrop/UserList.vue'
@@ -57,6 +58,8 @@ const modalTitle = ref('')
 const modalMessage = ref('')
 const modalType = ref('success')
 const users = ref([])
+const filteredUsers = ref([])
+const searchQuery = ref('')
 const selectedUsers = ref([])
 const points = ref(0)
 const isLoading = ref(false)
@@ -66,10 +69,45 @@ const pointsStore = usePointsStore()
 onMounted(async () => {
   try {
     users.value = await pointsStore.fetchUsers()
+    filteredUsers.value = users.value
   } catch (error) {
     console.error('Error fetching users:', error)
   }
 })
+
+// Search functionality
+async function handleSearch(query) {
+  searchQuery.value = query
+  
+  if (!query.trim()) {
+    // If search is empty, show all users
+    filteredUsers.value = users.value
+    return
+  }
+  
+  // Filter users locally based on search query
+  try {
+    if (query.length >= 2) {
+      // If query is at least 2 chars, perform a server search
+      filteredUsers.value = await pointsStore.searchUsers(query)
+    } else {
+      // Simple client-side filtering for short queries
+      const lowercaseQuery = query.toLowerCase()
+      filteredUsers.value = users.value.filter(user => 
+        user.name?.toLowerCase().includes(lowercaseQuery) || 
+        user.email?.toLowerCase().includes(lowercaseQuery)
+      )
+    }
+  } catch (error) {
+    console.error('Search error:', error)
+    // Fall back to local filtering if server search fails
+    const lowercaseQuery = query.toLowerCase()
+    filteredUsers.value = users.value.filter(user => 
+      user.name?.toLowerCase().includes(lowercaseQuery) || 
+      user.email?.toLowerCase().includes(lowercaseQuery)
+    )
+  }
+}
 
 // User selection management
 function toggleUser(userId) {
@@ -82,7 +120,8 @@ function toggleUser(userId) {
 }
 
 function selectAll() {
-  selectedUsers.value = users.value.map(user => user.id)
+  // Select all filtered users instead of all users
+  selectedUsers.value = filteredUsers.value.map(user => user.id)
 }
 
 function clearSelection() {

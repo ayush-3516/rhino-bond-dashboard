@@ -15,14 +15,23 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 
 const searchQuery = ref('')
+const debounceTimeout = ref(null)
 
 const emit = defineEmits(['search', 'select-all', 'clear-selection'])
 
 function handleSearch() {
-  emit('search', searchQuery.value)
+  // Clear any existing timeout
+  if (debounceTimeout.value) {
+    clearTimeout(debounceTimeout.value)
+  }
+  
+  // Set a new timeout to debounce the search
+  debounceTimeout.value = setTimeout(() => {
+    emit('search', searchQuery.value)
+  }, 300) // 300ms debounce
 }
 
 function selectAll() {

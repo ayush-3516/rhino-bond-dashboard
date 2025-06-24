@@ -113,7 +113,15 @@ const fetchBatches = async () => {
     console.log('Fetching batches from Supabase...')
     const { data, error } = await supabase
       .from('qr_codes')
-      .select('batch_id, created_at, id')
+      .select(`
+        batch_id, 
+        created_at, 
+        id, 
+        product_id,
+        products:product_id (
+          name
+        )
+      `)
       .order('created_at', { ascending: false })
 
     if (error) throw error
@@ -135,6 +143,8 @@ const fetchBatches = async () => {
         uniqueBatches.push({
           id: code.batch_id,
           created_at: code.created_at || new Date().toISOString(),
+          productName: code.products?.name || 'No Product',
+          product_id: code.product_id,
           count: 1
         })
         seenBatchIds.add(code.batch_id)
@@ -186,7 +196,28 @@ const deleteSelectedBatches = async (batchIds) => {
       throw new Error('No batches selected for deletion')
     }
 
-    // Delete all QR codes in the selected batches
+    // First, get all QR code IDs in the selected batches
+    const { data: qrCodes, error: fetchError } = await supabase
+      .from('qr_codes')
+      .select('id')
+      .in('batch_id', batchIds)
+    
+    if (fetchError) throw fetchError
+    
+    // If we have QR codes, delete their references in points_transactions first
+    if (qrCodes && qrCodes.length > 0) {
+      const qrCodeIds = qrCodes.map(code => code.id)
+      
+      // Delete related records in points_transactions first to prevent foreign key constraint violation
+      const { error: txError } = await supabase
+        .from('points_transactions')
+        .delete()
+        .in('qr_code_id', qrCodeIds)
+      
+      if (txError) throw txError
+    }
+
+    // Now delete the QR codes themselves
     const { error } = await supabase
       .from('qr_codes')
       .delete()

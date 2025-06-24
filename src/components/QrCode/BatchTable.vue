@@ -22,6 +22,7 @@
           <tr>
             <th></th>
             <th>Batch ID</th>
+            <th>Product</th>
             <th>Date</th>
             <th>Actions</th>
           </tr>
@@ -40,6 +41,7 @@
               />
             </td>
             <td>{{ batch?.id || 'N/A' }}</td>
+            <td>{{ batch?.productName || 'N/A' }}</td>
             <td>{{ formatDate(batch?.created_at) }}</td>
             <td>
               <button
