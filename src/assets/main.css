@@ -1,69 +1,159 @@
 @import './variables.css';
+@import './base.css';
+@import './enhanced.css';
 
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell,
-    'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  background-color: var(--color-background);
+/* App Layout */
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Page Layout */
+.page {
+  padding: var(--space-lg) 0;
+}
+
+.page-header {
+  margin-bottom: var(--space-xl);
+}
+
+.page-title {
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
   color: var(--color-text);
-  line-height: 1.5;
-  overflow-x: hidden;
+  margin-bottom: var(--space-xs);
 }
 
-a {
-  color: var(--color-primary);
-  text-decoration: none;
-  transition: var(--transition);
+.page-subtitle {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-md);
 }
 
-a:hover {
-  color: color-mix(in srgb, var(--color-primary), black 15%);
+/* Form Elements */
+.form-group {
+  margin-bottom: var(--space-md);
 }
 
-button {
-  cursor: pointer;
-  border: var(--border-width) solid transparent;
-  border-radius: var(--border-radius);
-  padding: var(--space-sm) var(--space-md);
-  background-color: var(--color-primary);
-  color: var(--color-text-inverse);
-  transition: var(--transition);
+.form-label {
+  display: block;
+  margin-bottom: var(--space-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text);
 }
 
-button:hover {
-  background-color: color-mix(in srgb, var(--color-primary), black 15%);
+.form-hint {
+  margin-top: var(--space-xs);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
 }
 
-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.form-error {
+  color: var(--color-error);
+  font-size: var(--font-size-sm);
+  margin-top: var(--space-xs);
 }
 
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-  margin: 0 0 var(--space-md);
-  line-height: 1.2;
-}
-
-p {
-  margin: 0 0 var(--space-md);
-}
-
-.container {
+/* Table Styles */
+.table {
   width: 100%;
-  max-width: 1440px;
-  margin: 0 auto;
-  padding: 0 var(--space-md);
+  border-collapse: separate;
+  border-spacing: 0;
+  margin-bottom: var(--space-lg);
 }
 
+.table th {
+  background: var(--color-background);
+  font-weight: var(--font-weight-semibold);
+  text-align: left;
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 2px solid rgba(15, 23, 42, 0.06);
+}
+
+.table td {
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.table tr:last-child td {
+  border-bottom: none;
+}
+
+.table tbody tr:hover {
+  background-color: rgba(15, 23, 42, 0.02);
+}
+
+/* Toast Notifications */
+.toast {
+  position: fixed;
+  bottom: var(--space-lg);
+  right: var(--space-lg);
+  padding: var(--space-md) var(--space-lg);
+  border-radius: var(--border-radius);
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: var(--shadow-lg);
+  z-index: var(--z-index-tooltip);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  animation: slideIn 0.3s ease;
+}
+
+.toast-success {
+  background: var(--color-success);
+  color: white;
+}
+
+.toast-error {
+  background: var(--color-error);
+  color: white;
+}
+
+@keyframes slideIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* Utility Classes */
+.flex { display: flex; }
+.flex-col { flex-direction: column; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.gap-sm { gap: var(--space-sm); }
+.gap-md { gap: var(--space-md); }
+.gap-lg { gap: var(--space-lg); }
+
+.mt-sm { margin-top: var(--space-sm); }
+.mt-md { margin-top: var(--space-md); }
+.mt-lg { margin-top: var(--space-lg); }
+.mb-sm { margin-bottom: var(--space-sm); }
+.mb-md { margin-bottom: var(--space-md); }
+.mb-lg { margin-bottom: var(--space-lg); }
+
+/* Responsive Adjustments */
 @media (max-width: 768px) {
-  .container {
-    padding: 0 var(--space-sm);
+  .page {
+    padding: var(--space-md) 0;
+  }
+  
+  .page-title {
+    font-size: var(--font-size-xl);
+  }
+  
+  .page-subtitle {
+    font-size: var(--font-size-base);
+  }
+  
+  .table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .toast {
+    left: var(--space-md);
+    right: var(--space-md);
+    bottom: var(--space-md);
   }
 }

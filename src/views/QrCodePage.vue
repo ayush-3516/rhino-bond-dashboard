@@ -1,45 +1,78 @@
 <template>
   <div class="qr-code-page">
-    <h1>QR Code Management</h1>
-
-    <div class="tabs">
-      <button
-        :class="['tab', { active: activeTab === 'generate' }]"
-        @click="activeTab = 'generate'"
-      >
-        Generate QR Codes
-      </button>
-      <button :class="['tab', { active: activeTab === 'export' }]" @click="activeTab = 'export'">
-        Export QR Codes
-      </button>
+    <div class="page-header">
+      <div class="header-title">
+        <h1>QR Code Management</h1>
+        <p class="subtitle">Generate, manage, and export QR codes for your products</p>
+      </div>
+      <div class="header-actions">
+        <div class="batch-stats">
+          <div class="stat-item">
+            <div class="stat-value">{{ batches.length }}</div>
+            <div class="stat-label">Total Batches</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value">{{ totalQrCodes }}</div>
+            <div class="stat-label">Total QR Codes</div>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <div v-if="activeTab === 'generate'" class="tab-content">
-      <QrCodeGenerator @codes-generated="handleCodesGenerated" />
+    <div class="tabs-container">
+      <div class="tabs">
+        <button
+          :class="['tab', { active: activeTab === 'generate' }]"
+          @click="activeTab = 'generate'"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="12" y1="8" x2="12" y2="16"></line>
+            <line x1="8" y1="12" x2="16" y2="12"></line>
+          </svg>
+          Generate QR Codes
+        </button>
+        <button :class="['tab', { active: activeTab === 'export' }]" @click="activeTab = 'export'">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          Manage & Export
+        </button>
+      </div>
     </div>
 
-    <div v-if="activeTab === 'export'" class="tab-content">
-      <ExportSettingsDialog
-        v-if="showExportDialog"
-        @confirm="handleExportSettings"
-        @close="showExportDialog = false"
-      />
-      <BatchTable
-        :batches="paginatedBatches"
-        v-model:selected-batches="selectedBatches"
-        :batch-loading="batchLoading"
-        :current-page="currentPage"
-        :total-pages="totalPages"
-        :loading="loading"
-        @view-batch="viewBatch"
-        @prev-page="prevPage"
-        @next-page="nextPage"
-        @export-selected-batches="() => showExportDialog = true"
-        @delete-selected-batches="deleteSelectedBatches"
-      />
+    <div class="content-card">
+      <div v-if="activeTab === 'generate'" class="tab-content">
+        <QrCodeGenerator @codes-generated="handleCodesGenerated" />
+      </div>
+
+      <div v-if="activeTab === 'export'" class="tab-content">
+        <ExportSettingsDialog
+          v-if="showExportDialog"
+          @confirm="handleExportSettings"
+          @close="showExportDialog = false"
+        />
+        <BatchTable
+          :batches="paginatedBatches"
+          v-model:selected-batches="selectedBatches"
+          :batch-loading="batchLoading"
+          :current-page="currentPage"
+          :total-pages="totalPages"
+          :loading="loading"
+          @view-batch="viewBatch"
+          @prev-page="prevPage"
+          @next-page="nextPage"
+          @export-selected-batches="() => showExportDialog = true"
+          @delete-selected-batches="deleteSelectedBatches"
+        />
+      </div>
     </div>
 
-    <QrCodeList v-if="currentBatchQRCodes.length > 0" :codes="currentBatchQRCodes" />
+    <div v-if="currentBatchQRCodes.length > 0" class="content-card qr-codes-viewer">
+      <QrCodeList :codes="currentBatchQRCodes" />
+    </div>
   </div>
 </template>
 
@@ -104,6 +137,10 @@ const paginatedBatches = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage
   const end = start + itemsPerPage
   return filteredBatches.value.slice(start, end)
+})
+
+const totalQrCodes = computed(() => {
+  return currentBatchQRCodes.value.length || 'N/A'
 })
 
 // Fetch all QR code batches from Supabase
@@ -396,43 +433,119 @@ onMounted(async () => {
 
 <style scoped>
 .qr-code-page {
-  padding: 20px;
+  padding: 2rem;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.header-title h1 {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 600;
+  color: var(--color-secondary);
+}
+
+.subtitle {
+  margin: 0.5rem 0 0 0;
+  font-size: 1rem;
+  color: #666;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+}
+
+.batch-stats {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.stat-item {
+  text-align: center;
+  padding: 0.8rem 1.5rem;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  min-width: 120px;
+}
+
+.stat-value {
+  font-size: 1.8rem;
+  font-weight: 600;
+  color: var(--color-primary);
+  margin-bottom: 0.2rem;
+}
+
+.stat-label {
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.tabs-container {
+  margin-bottom: 2rem;
 }
 
 .tabs {
   display: flex;
-  margin-bottom: 20px;
-  border-bottom: 1px solid #e0e0e0;
+  padding: 0.5rem;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  width: fit-content;
 }
 
 .tab {
-  padding: 10px 20px;
-  margin-right: 10px;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
   border: none;
-  background: none;
+  background: transparent;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 1rem;
   color: #666;
   transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .tab:hover {
-  color: #007bff;
+  color: var(--color-primary);
+  background: rgba(0, 220, 130, 0.05);
 }
 
 .tab.active {
-  color: #007bff;
-  border-bottom: 2px solid #007bff;
+  color: var(--color-primary);
+  background: rgba(0, 220, 130, 0.1);
+  font-weight: 500;
+}
+
+.tab svg {
+  color: currentColor;
+}
+
+.content-card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.qr-codes-viewer {
+  background: white;
+  border-radius: 12px;
 }
 
 .tab-content {
-  margin-top: 20px;
-}
-
-h1 {
-  color: #2c3e50;
-  margin-bottom: 30px;
-  font-size: 24px;
+  margin-top: 0.5rem;
 }
 
 /* Loading spinner animation */
@@ -449,7 +562,7 @@ h1 {
   height: 20px;
   margin-left: 10px;
   border: 2px solid #f3f3f3;
-  border-top: 2px solid #007bff;
+  border-top: 2px solid var(--color-primary);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -458,6 +571,35 @@ h1 {
 @media print {
   .qr-code-page {
     padding: 0;
+  }
+  
+  .page-header,
+  .tabs-container {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .qr-code-page {
+    padding: 1rem;
+  }
+  
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  
+  .header-actions {
+    width: 100%;
+  }
+  
+  .batch-stats {
+    width: 100%;
+  }
+  
+  .stat-item {
+    flex: 1;
   }
 }
 </style>

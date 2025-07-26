@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { usePriceStore } from '@/stores/price'
 
 const props = defineProps({
@@ -7,21 +7,6 @@ const props = defineProps({
     type: String,
     default: ''
   }
-})
-
-const emit = defineEmits(['update:searchTerm'])
-
-// Create a local search term based on the prop
-const localSearchTerm = ref(props.searchTerm)
-
-// Watch for changes to the prop and update local value
-watch(() => props.searchTerm, (newValue) => {
-  localSearchTerm.value = newValue
-})
-
-// Watch for changes to the local value and emit update
-watch(localSearchTerm, (newValue) => {
-  emit('update:searchTerm', newValue)
 })
 
 const priceStore = usePriceStore()
@@ -58,9 +43,9 @@ const parseVariation = (variation) => {
 }
 
 const filteredProducts = computed(() => {
-  if (!localSearchTerm.value) return priceStore.products
+  if (!props.searchTerm) return priceStore.products
   
-  const term = localSearchTerm.value.toLowerCase()
+  const term = props.searchTerm.toLowerCase()
   return priceStore.products.filter(product => 
     product.name.toLowerCase().includes(term)
   )
@@ -170,9 +155,10 @@ const deletePrice = async (priceId) => {
           </svg>
           <input 
             type="text" 
-            v-model="localSearchTerm" 
+            v-model="props.searchTerm" 
             placeholder="Search products..." 
             class="search-input"
+            readonly
           />
         </div>
       </div>

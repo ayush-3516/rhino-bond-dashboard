@@ -182,10 +182,6 @@ const props = defineProps({
     type: Array,
     required: true,
   },
-  selectedBatches: {
-    type: Array,
-    required: true,
-  },
   batchLoading: {
     type: Boolean,
     required: true,
@@ -194,18 +190,12 @@ const props = defineProps({
     type: Boolean,
     required: true,
   },
-  currentPage: {
-    type: Number,
-    required: true
-  },
-  totalPages: {
-    type: Number,
-    required: true
-  }
 })
 
-const emit = defineEmits(['update:selectedBatches', 'viewBatch', 'export-selected-batches', 'delete-selected-batches', 'prev-page', 'next-page'])
+const emit = defineEmits(['update:selectedBatches', 'viewBatch', 'export-selected-batches', 'delete-selected-batches'])
 
+const currentPage = ref(1)
+const itemsPerPage = 10
 const batchFilter = ref('')
 
 const selectedBatches = ref([])
@@ -227,16 +217,26 @@ const filteredBatches = computed(() => {
   })
 })
 
+const totalPages = computed(() => {
+  return Math.ceil(filteredBatches.value.length / itemsPerPage)
+})
+
 const paginatedBatches = computed(() => {
-  return props.batches
+  const start = (currentPage.value - 1) * itemsPerPage
+  const end = start + itemsPerPage
+  return filteredBatches.value.slice(start, end)
 })
 
 const nextPage = () => {
-  emit('next-page')
+  if (currentPage.value < totalPages.value) {
+    currentPage.value++
+  }
 }
 
 const prevPage = () => {
-  emit('prev-page')
+  if (currentPage.value > 1) {
+    currentPage.value--
+  }
 }
 
 const toggleBatchSelection = (batchId) => {
@@ -266,7 +266,8 @@ const viewBatch = (batchId) => {
 }
 
 const exportSelectedBatches = () => {
-  emit('export-selected-batches')
+  console.log('Exporting selected batches:', selectedBatches.value)
+  emit('export-selected-batches', selectedBatches.value)
 }
 
 const showDeleteDialog = ref(false)
@@ -282,19 +283,7 @@ const deleteSelectedBatches = () => {
 }
 
 const formatDate = (dateString) => {
-  if (!dateString) return 'Unknown'
-  
-  try {
-    const date = new Date(dateString)
-    return date.toLocaleDateString(undefined, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    })
-  } catch (e) {
-    console.error('Date formatting error:', e)
-    return dateString
-  }
+  return new Date(dateString).toLocaleDateString()
 }
 </script>
 

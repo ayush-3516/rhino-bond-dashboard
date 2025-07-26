@@ -12,8 +12,12 @@ const router = createRouter({
     },
     {
       path: '/auth',
-      name: 'phone-auth',
-      component: () => import('../views/PhoneAuth.vue'),
+      name: 'auth',
+      component: () => import('../views/AuthView.vue'),
+    },
+    {
+      path: '/login',
+      redirect: { name: 'auth' }
     },
     {
       path: '/qr-codes',
@@ -29,8 +33,8 @@ const router = createRouter({
     },
     {
       path: '/users',
-      name: 'user-management',
-      component: () => import('../components/UserManagement.vue'),
+      name: 'users',
+      component: () => import('../views/UsersView.vue'),
       meta: { requiresAuth: true }
     },
     {
@@ -74,7 +78,7 @@ router.beforeEach(async (to, from, next) => {
     await authStore.initializeSession()
 
     if (!authStore.isAuthenticated) {
-      next({ name: 'phone-auth', query: { redirect: to.fullPath } })
+      next({ name: 'auth', query: { redirect: to.fullPath } })
       return
     }
   }

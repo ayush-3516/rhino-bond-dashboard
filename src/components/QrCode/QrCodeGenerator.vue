@@ -1,24 +1,68 @@
 <template>
   <div class="generation-section">
-    <h2>Generate New QR Codes</h2>
-    <form @submit.prevent="generateQRCodes">
-      <div class="form-group">
-        <label for="product">Select Product:</label>
-        <select v-model="productId" required id="product">
-          <option v-for="product in products" :key="product.id" :value="product.id">
-            {{ product.name }} ({{ product.points_value }} points)
-          </option>
-        </select>
+    <div class="section-header">
+      <h2>Generate New QR Codes</h2>
+      <div class="section-description">
+        Generate QR codes for your products to track points and rewards
+      </div>
+    </div>
+    
+    <form @submit.prevent="generateQRCodes" class="qr-form">
+      <div class="form-columns">
+        <div class="form-column">
+          <div class="form-group">
+            <label for="product">Select Product</label>
+            <div class="select-wrapper">
+              <select v-model="productId" required id="product" class="form-control">
+                <option value="" disabled selected>Choose a product</option>
+                <option v-for="product in products" :key="product.id" :value="product.id">
+                  {{ product.name }} ({{ product.points_value }} points)
+                </option>
+              </select>
+              <div class="select-arrow">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </div>
+            </div>
+            <div class="form-help">Select the product for which QR codes will be generated</div>
+          </div>
+        </div>
+        
+        <div class="form-column">
+          <div class="form-group">
+            <label for="quantity">Quantity</label>
+            <div class="number-input-wrapper">
+              <button type="button" class="number-control" @click="decrementQuantity" :disabled="quantity <= 1">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+              </button>
+              <input type="number" v-model="quantity" min="1" required id="quantity" class="form-control number-input" />
+              <button type="button" class="number-control" @click="incrementQuantity">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+              </button>
+            </div>
+            <div class="form-help">Enter the number of QR codes to generate</div>
+          </div>
+        </div>
       </div>
 
-      <div class="form-group">
-        <label for="quantity">Quantity:</label>
-        <input type="number" v-model="quantity" min="1" required id="quantity" />
+      <div class="form-actions">
+        <button class="generate-btn" :disabled="loading || !productId" type="submit">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+            <rect x="7" y="7" width="3" height="3"></rect>
+            <rect x="14" y="7" width="3" height="3"></rect>
+            <rect x="7" y="14" width="3" height="3"></rect>
+            <rect x="14" y="14" width="3" height="3"></rect>
+          </svg>
+          {{ loading ? 'Generating...' : 'Generate QR Codes' }}
+        </button>
       </div>
-
-      <button :disabled="loading" type="submit">
-        {{ loading ? 'Generating...' : 'Generate QR Codes' }}
-      </button>
     </form>
   </div>
 </template>
@@ -72,6 +116,16 @@ const fetchProducts = async () => {
 const generateManualIdentifier = () => {
   const randomHash = generateUUID().replace(/-/g, '').slice(0, 8)
   return `QR-${randomHash}`
+}
+
+const incrementQuantity = () => {
+  quantity.value++
+}
+
+const decrementQuantity = () => {
+  if (quantity.value > 1) {
+    quantity.value--
+  }
 }
 
 const generateQRCodes = async () => {
@@ -147,53 +201,186 @@ fetchProducts()
 
 <style scoped>
 .generation-section {
-  margin-top: 30px;
-  background-color: #f8f9fa;
-  padding: 20px;
-  border-radius: 8px;
+  margin-bottom: 1.5rem;
+}
+
+.section-header {
+  margin-bottom: 1.5rem;
+}
+
+.section-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 500;
+  color: var(--color-secondary);
+}
+
+.section-description {
+  margin-top: 0.5rem;
+  color: #666;
+  font-size: 0.95rem;
+}
+
+.qr-form {
+  background-color: white;
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+.form-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
 }
 
 .form-group {
-  margin-bottom: 15px;
+  margin-bottom: 1rem;
   display: flex;
   flex-direction: column;
 }
 
 .form-group label {
-  margin-bottom: 8px;
-  font-weight: 600;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
   color: #333;
+  font-size: 0.95rem;
 }
 
-.form-group select,
-.form-group input {
-  padding: 8px 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 14px;
-  transition: border-color 0.2s;
+.form-control {
+  padding: 0.75rem 1rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  transition: all 0.2s;
+  background: #f9f9f9;
 }
 
-.form-group select:focus,
-.form-group input:focus {
+.form-control:focus {
   outline: none;
-  border-color: #007bff;
-  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(0, 220, 130, 0.1);
+  background: white;
 }
 
-.form-group input[type='number'] {
-  width: 100px;
+.form-help {
+  margin-top: 0.5rem;
+  color: #888;
+  font-size: 0.8rem;
 }
 
-button {
-  background-color: #007bff;
+/* Select styling */
+.select-wrapper {
+  position: relative;
+}
+
+.select-wrapper select {
+  appearance: none;
+  width: 100%;
+  padding-right: 2.5rem;
+}
+
+.select-arrow {
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #999;
+  pointer-events: none;
+}
+
+/* Number input styling */
+.number-input-wrapper {
+  display: flex;
+  align-items: center;
+}
+
+.number-input {
+  width: 100%;
+  text-align: center;
+  -moz-appearance: textfield; /* Firefox */
+}
+
+.number-input::-webkit-outer-spin-button,
+.number-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.number-control {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: #f2f2f2;
+  border: 1px solid #e0e0e0;
+  color: #555;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.number-control:hover:not(:disabled) {
+  background: #e9e9e9;
+}
+
+.number-control:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.number-control:first-child {
+  border-top-left-radius: 8px;
+  border-bottom-left-radius: 8px;
+  border-right: none;
+}
+
+.number-control:last-child {
+  border-top-right-radius: 8px;
+  border-bottom-right-radius: 8px;
+  border-left: none;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.generate-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: var(--color-primary);
   color: white;
   border: none;
-  padding: 10px 20px;
-  border-radius: 4px;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
   cursor: pointer;
   font-weight: 500;
-  transition: background-color 0.2s;
+  transition: all 0.2s;
+  font-size: 1rem;
+}
+
+.generate-btn:hover:not(:disabled) {
+  background-color: #00b86b;
+  transform: translateY(-1px);
+}
+
+.generate-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .qr-form {
+    padding: 1.5rem;
+  }
+  
+  .form-columns {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
 }
 
 button:hover:not(:disabled) {

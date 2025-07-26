@@ -105,12 +105,27 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  function clearSession() {
-    user.value = null
-    session.value = null
-    sessionExpiry.value = null
+  async function clearSession() {
     try {
+      // Sign out from Supabase
+      const { error } = await supabase.auth.signOut()
+      if (error) throw error
+      
+      // Clear local state
+      user.value = null
+      session.value = null
+      sessionExpiry.value = null
+      
+      // Remove from local storage
       localStorage.removeItem('auth_session')
+      
+      // Trigger storage event for other tabs
+      window.dispatchEvent(
+        new StorageEvent('storage', {
+          key: 'auth_session',
+          newValue: null,
+        }),
+      )
     } catch (error) {
       console.error('Failed to clear session:', error)
     }

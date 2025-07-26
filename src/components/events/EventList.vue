@@ -5,6 +5,7 @@ import ConfirmModal from '@/components/ConfirmModal.vue'
 
 const eventStore = useEventStore()
 const selectedEvents = ref(new Set())
+const filterActive = ref('upcoming') // 'upcoming', 'past', 'all'
 
 const events = computed(() => eventStore.events)
 const loading = computed(() => eventStore.loading)
@@ -15,6 +16,19 @@ function toggleEventSelection(eventId) {
     selectedEvents.value.delete(eventId)
   } else {
     selectedEvents.value.add(eventId)
+  }
+}
+
+function selectAllVisible() {
+  const visibleEvents = filteredEvents.value
+  if (selectedEvents.value.size === visibleEvents.length) {
+    // Deselect all if all are selected
+    selectedEvents.value.clear()
+  } else {
+    // Select all visible events
+    visibleEvents.forEach(event => {
+      selectedEvents.value.add(event.id)
+    })
   }
 }
 
@@ -49,6 +63,18 @@ const pastEvents = computed(() =>
     .sort((a, b) => new Date(b.end_date) - new Date(a.end_date))
 )
 
+const filteredEvents = computed(() => {
+  switch (filterActive.value) {
+    case 'upcoming':
+      return upcomingEvents.value
+    case 'past':
+      return pastEvents.value
+    case 'all':
+    default:
+      return [...upcomingEvents.value, ...pastEvents.value]
+  }
+})
+
 function formatDate(dateString) {
   const date = new Date(dateString)
   return date.toLocaleString('en-US', {
@@ -59,82 +85,237 @@ function formatDate(dateString) {
     minute: 'numeric',
   })
 }
+
+function getTimeRemaining(dateString) {
+  const targetDate = new Date(dateString)
+  const now = new Date()
+  
+  if (targetDate < now) {
+    return 'Ended'
+  }
+  
+  const diffMs = targetDate - now
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+  
+  if (diffDays > 0) {
+    return `${diffDays} day${diffDays > 1 ? 's' : ''}`
+  }
+  
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+  if (diffHours > 0) {
+    return `${diffHours} hour${diffHours > 1 ? 's' : ''}`
+  }
+  
+  const diffMins = Math.floor(diffMs / (1000 * 60))
+  return `${diffMins} min${diffMins > 1 ? 's' : ''}`
+}
+
+function isPastEvent(event) {
+  return new Date(event.end_date) <= new Date()
+}
 </script>
 
 <template>
   <div class="event-list">
-    <div v-if="loading" class="loading">Loading events...</div>
-    <div v-else-if="error" class="error">Error: {{ error }}</div>
+    <div v-if="loading" class="loading">
+      <div class="spinner"></div>
+      <span>Loading events...</span>
+    </div>
+    <div v-else-if="error" class="error">
+      <div class="error-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="12"></line>
+          <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+      </div>
+      <span>{{ error }}</span>
+    </div>
     <div v-else>
-      <div class="events-section">
-        <h2>Upcoming Events</h2>
-        <div v-if="upcomingEvents.length === 0" class="no-events">No upcoming events found</div>
-        <div v-else class="events">
-          <div v-for="event in upcomingEvents" :key="event.id" class="event-item">
-            <div class="event-checkbox">
-              <input 
-                type="checkbox" 
-                :checked="selectedEvents.has(event.id)"
-                @change="toggleEventSelection(event.id)"
-              />
-            </div>
-            <div class="event-header">
-            <h3 class="event-title">{{ event.title }}</h3>
-            <div class="event-dates">
-              <div class="event-date">
-                <span class="date-label">Start:</span> {{ formatDate(event.start_date) }}
-              </div>
-              <div class="event-date">
-                <span class="date-label">End:</span> {{ formatDate(event.end_date) }}
-              </div>
-            </div>
-          </div>
-          <div v-if="event.image_url" class="event-image">
-            <img :src="event.image_url" :alt="event.title" />
-          </div>
-          <div class="event-description" v-if="event.description">
-            {{ event.description }}
-          </div>
+      <div class="event-controls">
+        <div class="filter-buttons">
+          <button 
+            :class="['btn-tab', { active: filterActive === 'upcoming' }]" 
+            @click="filterActive = 'upcoming'"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+            <span>Upcoming</span>
+            <span v-if="upcomingEvents.length > 0" class="badge">{{ upcomingEvents.length }}</span>
+          </button>
+          <button 
+            :class="['btn-tab', { active: filterActive === 'past' }]" 
+            @click="filterActive = 'past'"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 16 12 12 8 10"></polyline>
+            </svg>
+            <span>Past</span>
+            <span v-if="pastEvents.length > 0" class="badge">{{ pastEvents.length }}</span>
+          </button>
+          <button 
+            :class="['btn-tab', { active: filterActive === 'all' }]" 
+            @click="filterActive = 'all'"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="8" y1="12" x2="16" y2="12"></line>
+            </svg>
+            <span>All</span>
+            <span v-if="events.length > 0" class="badge">{{ events.length }}</span>
+          </button>
+        </div>
+        
+        <div class="selection-controls">
+          <button 
+            class="btn btn-secondary select-all-btn" 
+            @click="selectAllVisible" 
+            v-if="filteredEvents.length > 0"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="9 11 12 14 22 4"></polyline>
+              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+            </svg>
+            {{ selectedEvents.size === filteredEvents.length ? 'Deselect All' : 'Select All' }}
+          </button>
+          <button 
+            v-if="selectedEvents.size > 0" 
+            class="btn delete-btn" 
+            @click="deleteSelectedEvents"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+            Delete ({{ selectedEvents.size }})
+          </button>
         </div>
       </div>
+      
+      <div v-if="filteredEvents.length === 0" class="empty-state">
+        <div class="empty-state-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="16" y1="2" x2="16" y2="6"></line>
+            <line x1="8" y1="2" x2="8" y2="6"></line>
+            <line x1="3" y1="10" x2="21" y2="10"></line>
+            <path d="M8 14h.01"></path>
+            <path d="M12 14h.01"></path>
+            <path d="M16 14h.01"></path>
+            <path d="M8 18h.01"></path>
+            <path d="M12 18h.01"></path>
+            <path d="M16 18h.01"></path>
+          </svg>
+        </div>
+        <h3>No {{ filterActive }} events found</h3>
+        <p class="subtitle">Create a new event for your conservation initiative to get started</p>
+        <button class="btn btn-primary create-event-btn" @click="$emit('create-event')">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          Create New Event
+        </button>
       </div>
+      
+      <div v-else class="events">
+        <div 
+          v-for="event in filteredEvents" 
+          :key="event.id" 
+          class="event-card"
+          :class="{ 'past-event': isPastEvent(event), 'selected': selectedEvents.has(event.id) }"
+        >
+          <div class="event-select">
+            <input 
+              type="checkbox" 
+              :checked="selectedEvents.has(event.id)"
+              @change="toggleEventSelection(event.id)"
+              class="styled-checkbox"
+              :id="`event-${event.id}`"
+            />
+            <label :for="`event-${event.id}`" class="checkbox-label"></label>
+          </div>
 
-      <div class="events-section" v-if="pastEvents.length > 0">
-        <h2>Past Events</h2>
-        <div class="events">
-          <div v-for="event in pastEvents" :key="event.id" class="event-item past-event">
-            <div class="event-checkbox">
-              <input 
-                type="checkbox" 
-                :checked="selectedEvents.has(event.id)"
-                @change="toggleEventSelection(event.id)"
-              />
+          <div class="event-date-badge">
+            <div class="date-badge">
+              <div class="month">{{ new Date(event.start_date).toLocaleString('en-US', { month: 'short' }).toUpperCase() }}</div>
+              <div class="day">{{ new Date(event.start_date).getDate() }}</div>
+              <div class="year">{{ new Date(event.start_date).getFullYear() }}</div>
             </div>
+          </div>
+          
+          <div class="event-content">
             <div class="event-header">
               <h3 class="event-title">{{ event.title }}</h3>
-              <div class="event-dates">
-                <div class="event-date">
-                  <span class="date-label">Start:</span> {{ formatDate(event.start_date) }}
-                </div>
-                <div class="event-date">
-                  <span class="date-label">End:</span> {{ formatDate(event.end_date) }}
-                </div>
+              <div class="event-status" :class="{ 'past': isPastEvent(event) }">
+                {{ isPastEvent(event) ? 'Past' : 'Upcoming' }}
               </div>
             </div>
-            <div v-if="event.image_url" class="event-image">
-              <img :src="event.image_url" :alt="event.title" />
+            
+            <div class="event-details">
+              <div class="event-dates">
+                <div class="date-item">
+                  <svg class="date-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                  </svg>
+                  <div class="date-content">
+                    <div class="date-label">Starts</div>
+                    <div class="date-value">{{ formatDate(event.start_date) }}</div>
+                  </div>
+                </div>
+                
+                <div class="date-item">
+                  <svg class="date-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                  </svg>
+                  <div class="date-content">
+                    <div class="date-label">Ends</div>
+                    <div class="date-value">{{ formatDate(event.end_date) }}</div>
+                  </div>
+                </div>
+              </div>
+              
+              <div v-if="!isPastEvent(event)" class="time-remaining">
+                <svg class="time-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M10 2h4"></path>
+                  <path d="M12 14v-4"></path>
+                  <path d="M4 13a8 8 0 0 1 8-7 8 8 0 1 1-5.3 14L4 17.6"></path>
+                  <path d="M9 17H4v5"></path>
+                </svg>
+                <span>{{ getTimeRemaining(event.end_date) }} remaining</span>
+              </div>
             </div>
-            <div class="event-description" v-if="event.description">
-              {{ event.description }}
+            
+            <div v-if="event.description" class="event-description">
+              <p>{{ event.description && event.description.length > 120 ? event.description.substring(0, 120) + '...' : event.description }}</p>
+            </div>
+
+            <div class="event-actions">
+              <button class="btn btn-icon btn-edit">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                </svg>
+                Edit
+              </button>
+              <button class="btn btn-icon btn-danger">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                </svg>
+                Delete
+              </button>
             </div>
           </div>
         </div>
       </div>
-    </div>
-    <div v-if="selectedEvents.size > 0" class="delete-actions">
-      <button class="delete-button" @click="deleteSelectedEvents">
-        Delete Selected ({{ selectedEvents.size }})
-      </button>
     </div>
   </div>
 
@@ -147,8 +328,8 @@ function formatDate(dateString) {
       <h3>Confirm Deletion</h3>
     </template>
     <template #body>
-      Are you sure you want to delete {{ selectedEvents.size }} selected event(s)?
-      This action cannot be undone.
+      <p>Are you sure you want to delete {{ selectedEvents.size }} selected event(s)?</p>
+      <p class="warning">This action cannot be undone.</p>
     </template>
   </ConfirmModal>
 </template>
@@ -159,128 +340,320 @@ function formatDate(dateString) {
   position: relative;
 }
 
-.event-checkbox {
-  position: absolute;
-  left: -1.5rem;
-  top: 1rem;
+.event-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-lg);
+  background: linear-gradient(to right, rgba(15, 23, 42, 0.03), rgba(15, 23, 42, 0.01));
+  padding: var(--space-md);
+  border-radius: var(--border-radius-lg);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  backdrop-filter: blur(8px);
 }
 
-.delete-actions {
-  position: fixed;
-  bottom: 1rem;
-  right: 1rem;
-  z-index: 100;
+.filter-buttons {
+  display: flex;
+  gap: var(--space-xs);
 }
 
-.delete-button {
-  background-color: #ff4444;
-  color: white;
+.btn-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-md);
+  background: transparent;
   border: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: 4px;
+  color: var(--color-text-secondary);
+  font-weight: 500;
+  border-radius: var(--border-radius);
+  transition: all 0.2s ease;
   cursor: pointer;
-  font-weight: bold;
-  transition: background-color 0.2s;
 }
 
-.delete-button:hover {
-  background-color: #cc0000;
+.btn-tab:hover {
+  background: rgba(15, 23, 42, 0.04);
+  color: var(--color-text);
 }
 
-.event-item {
-  position: relative;
+.btn-tab.active {
+  background: white;
+  color: var(--color-primary);
+  box-shadow: var(--shadow-sm);
+  font-weight: 600;
 }
 
-.loading,
-.error,
-.no-events {
-  text-align: center;
-  padding: 1rem;
-  color: #666;
+.badge {
+  background: rgba(15, 23, 42, 0.08);
+  color: var(--color-text-secondary);
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
 }
 
-.error {
-  color: #ff4444;
+.btn-tab.active .badge {
+  background: rgba(0, 220, 130, 0.12);
+  color: var(--color-primary);
 }
 
 .events {
   display: grid;
-  gap: 1rem;
+  gap: var(--space-md);
 }
 
-.event-item {
-  background: white;
-  padding: 1rem;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+.event-card {
+  position: relative;
+  background: linear-gradient(to right, #ffffff, #fafbff);
+  box-shadow: var(--shadow-md);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: var(--border-radius-lg);
+  overflow: hidden;
+  transition: all 0.3s ease;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: start;
+  gap: var(--space-lg);
+  padding: var(--space-lg);
+}
+
+.event-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+  border-color: rgba(15, 23, 42, 0.12);
+  background: linear-gradient(to right, #ffffff, #f8faff);
+}
+
+.event-date-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 80px;
+}
+
+.date-badge {
+  text-align: center;
+  background: linear-gradient(135deg, rgba(0, 220, 130, 0.12), rgba(0, 220, 130, 0.05));
+  padding: var(--space-sm);
+  border-radius: var(--border-radius);
+  color: var(--color-primary);
+  box-shadow: 0 2px 4px rgba(0, 220, 130, 0.1);
+  border: 1px solid rgba(0, 220, 130, 0.1);
+}
+
+.date-badge .month {
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.date-badge .day {
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.2;
+  margin: 2px 0;
+  color: var(--color-primary-dark, #059669);
+}
+
+.date-badge .year {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+.event-content {
+  flex: 1;
 }
 
 .event-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.5rem;
+  align-items: flex-start;
+  margin-bottom: var(--space-sm);
 }
 
 .event-title {
-  margin: 0;
-  color: #2c3e50;
+  color: var(--color-secondary, #1a202c);
+  font-weight: 600;
+  font-size: var(--font-size-lg);
+  line-height: 1.4;
+  margin-bottom: var(--space-xs);
+}
+
+.event-status {
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: rgba(0, 220, 130, 0.12);
+  color: var(--color-primary, #10b981);
+}
+
+.event-status.past {
+  background: rgba(100, 116, 139, 0.12);
+  color: var(--color-text-secondary, #64748b);
+}
+
+.event-details {
+  display: flex;
+  gap: var(--space-xl);
+  margin: var(--space-md) 0;
+  background: rgba(255, 255, 255, 0.6);
+  padding: var(--space-md);
+  border-radius: var(--border-radius);
+  border: 1px solid rgba(15, 23, 42, 0.06);
 }
 
 .event-dates {
-  text-align: right;
+  display: grid;
+  gap: var(--space-sm);
 }
 
-.event-date {
-  color: #666;
-  font-size: 0.9rem;
+.date-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  color: var(--color-text-secondary);
+}
+
+.date-icon {
+  color: var(--color-primary);
+}
+
+.date-content {
+  display: flex;
+  flex-direction: column;
 }
 
 .date-label {
-  font-weight: bold;
-  color: #42b983;
-}
-
-.event-image {
-  margin: 1rem 0;
-}
-
-.event-image img {
-  width: 100%;
-  max-height: 300px;
-  object-fit: cover;
-  border-radius: 4px;
-}
-
-.event-description {
+  font-size: 0.8rem;
   color: #666;
-  line-height: 1.5;
 }
 
-.events-section {
-  margin-bottom: 2rem;
+.time-remaining {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: 4px 12px;
+  background: rgba(0, 220, 130, 0.1);
+  border-radius: 20px;
+  color: var(--color-primary);
+  font-size: 0.8rem;
+  font-weight: 500;
 }
 
-.events-section h2 {
-  color: #2c3e50;
-  margin-bottom: 1rem;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid #eee;
+.event-actions {
+  display: flex;
+  gap: var(--space-xs);
 }
 
-.past-event {
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: var(--border-radius);
+  background: white;
+  color: var(--color-text-secondary);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-icon:hover {
+  background: #f8faff;
+  border-color: rgba(15, 23, 42, 0.15);
+  transform: translateY(-1px);
+}
+
+.btn-danger {
+  border-color: #ef4444;
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.05);
+}
+
+.btn-danger:hover {
+  background: #ef4444;
+  color: white;
+  border-color: #ef4444;
+}
+
+.empty-state {
+  text-align: center;
+  padding: var(--space-2xl);
+  background: linear-gradient(135deg, #f8faff 0%, #ffffff 100%);
+  border-radius: var(--border-radius-lg);
+  border: 1px dashed rgba(15, 23, 42, 0.1);
+  box-shadow: var(--shadow-sm);
+}
+
+.empty-state-icon {
+  color: var(--color-primary);
   opacity: 0.7;
+  margin-bottom: var(--space-md);
+  filter: drop-shadow(0 2px 4px rgba(0, 220, 130, 0.2));
 }
 
-.past-event .event-title {
-  color: #666;
+.empty-state h3 {
+  font-size: var(--font-size-xl);
+  color: var(--color-text);
+  margin: 0 0 var(--space-xs);
+  font-weight: 600;
 }
 
-.past-event .event-date {
-  color: #999;
+.empty-state .subtitle {
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-lg);
+  font-size: var(--font-size-md);
 }
 
-.past-event .event-description {
-  color: #999;
+.create-event-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-lg);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+  color: white;
+  border: none;
+  border-radius: 30px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 6px rgba(0, 220, 130, 0.2);
+}
+
+.create-event-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 8px rgba(0, 220, 130, 0.25);
+}
+
+@media (max-width: 768px) {
+  .event-controls {
+    flex-direction: column;
+    gap: var(--space-md);
+    align-items: stretch;
+  }
+
+  .filter-buttons {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  }
+
+  .event-card {
+    grid-template-columns: 1fr;
+    gap: var(--space-md);
+  }
+
+  .event-details {
+    flex-direction: column;
+    gap: var(--space-md);
+  }
+
+  .event-actions {
+    justify-content: flex-start;
+    margin-top: var(--space-md);
+  }
 }
 </style>

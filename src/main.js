@@ -1,9 +1,15 @@
 import './assets/main.css'
+import './assets/transactions-styles.css'
 import './assets/enhanced.css'
+import './assets/event-styles.css'
+import './assets/button-styles.css'
+import './assets/footer-styles.css'
+import './assets/card-styles.css'
 
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import { useAuthStore } from './stores/auth'
+import { supabase } from './supabase'
 
 import App from './App.vue'
 import router from './router'
@@ -33,6 +39,17 @@ const initializeSession = async () => {
           clearInterval(refreshInterval)
         }
       }, 300000) // 5 minutes
+      
+      // Register auth state change listener for better session handling
+      supabase.auth.onAuthStateChange((event, session) => {
+        if (event === 'SIGNED_IN' && session) {
+          authStore.setSession(session.user, session, session.expires_in)
+        } else if (event === 'SIGNED_OUT') {
+          authStore.clearSession()
+        } else if (event === 'USER_UPDATED' && session) {
+          authStore.setSession(session.user, session, session.expires_in)
+        }
+      })
     }
   } catch (error) {
     console.error('Failed to initialize session:', error)

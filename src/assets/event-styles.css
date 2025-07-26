@@ -1,0 +1,439 @@
+/* Event List Enhanced Styles */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.event-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-lg);
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  padding-bottom: var(--space-md);
+}
+
+.filter-buttons {
+  display: flex;
+  gap: var(--space-xs);
+}
+
+.btn-tab {
+  background-color: transparent;
+  color: var(--color-text-secondary);
+  border: none;
+  border-radius: 0;
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition: var(--transition);
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.btn-tab::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background-color: transparent;
+  transition: var(--transition);
+}
+
+.btn-tab:hover {
+  color: var(--color-primary);
+}
+
+.btn-tab.active {
+  color: var(--color-primary);
+  font-weight: var(--font-weight-medium);
+}
+
+.btn-tab.active::after {
+  background-color: var(--color-primary);
+}
+
+.selection-controls {
+  display: flex;
+  gap: var(--space-xs);
+}
+
+.btn {
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--border-radius);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: all var(--transition-duration) ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  box-shadow: var(--shadow-button);
+  border: none;
+}
+
+.btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
+  color: var(--color-text-inverse);
+}
+
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+  background: linear-gradient(135deg, var(--color-primary-light), var(--color-primary));
+}
+
+.btn-secondary {
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid rgba(15, 23, 42, 0.1);
+}
+
+.btn-secondary:hover {
+  background-color: rgba(15, 23, 42, 0.02);
+  transform: translateY(-1px);
+}
+
+.btn-icon {
+  padding: var(--space-xs) var(--space-md);
+  font-size: var(--font-size-sm);
+}
+
+.btn-danger {
+  background-color: #ff4444;
+  color: white;
+}
+
+.btn-danger:hover {
+  background-color: #e53935;
+}
+
+.delete-btn {
+  background-color: #ff4444;
+  color: white;
+}
+
+.delete-btn:hover {
+  background-color: #e53935;
+}
+
+.subtitle {
+  margin-top: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+/* Event Cards */
+.events {
+  display: grid;
+  gap: var(--space-lg);
+}
+
+.event-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  background: white;
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  border-left: 4px solid var(--color-primary);
+  background: linear-gradient(to bottom right, #ffffff, #f9fafb);
+}
+
+.event-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-lg);
+  border-left-width: 6px;
+}
+
+.event-card.selected {
+  box-shadow: 0 0 0 2px var(--color-primary);
+}
+
+.event-card.past-event {
+  border-left-color: var(--color-text-secondary);
+  opacity: 0.85;
+}
+
+.event-select {
+  position: absolute;
+  top: var(--space-sm);
+  right: var(--space-sm);
+  z-index: 2;
+}
+
+.styled-checkbox {
+  position: absolute;
+  opacity: 0;
+}
+
+.checkbox-label {
+  position: relative;
+  cursor: pointer;
+  padding: 0;
+  width: 22px;
+  height: 22px;
+  background: white;
+  border: 2px solid rgba(15, 23, 42, 0.2);
+  border-radius: 4px;
+  display: inline-block;
+  transition: all 0.2s ease;
+}
+
+.styled-checkbox:checked + .checkbox-label {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.styled-checkbox:checked + .checkbox-label:after {
+  content: '';
+  position: absolute;
+  left: 7px;
+  top: 3px;
+  width: 5px;
+  height: 10px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.event-date-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-md);
+}
+
+.date-badge {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
+  color: white;
+  border-radius: var(--border-radius-md);
+  padding: var(--space-xs) var(--space-sm);
+  text-align: center;
+  box-shadow: 0 4px 12px rgba(0, 220, 130, 0.3);
+  width: 64px;
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(10px);
+}
+
+.date-badge::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 70%);
+  opacity: 0.5;
+}
+
+.past-event .date-badge {
+  background: linear-gradient(135deg, #9e9e9e, #757575);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.date-badge .month {
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 1px;
+}
+
+.date-badge .day {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  line-height: 1;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.event-content {
+  padding: var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.event-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--space-xs);
+}
+
+.event-title {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  color: var(--color-text);
+  font-weight: var(--font-weight-semibold);
+}
+
+.event-status {
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: 20px;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  background-color: var(--color-primary);
+  color: white;
+}
+
+.event-status.past {
+  background-color: var(--color-text-secondary);
+}
+
+.event-details {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.event-dates {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.date-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.date-icon {
+  color: var(--color-text-secondary);
+}
+
+.date-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.date-label {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.date-value {
+  font-size: var(--font-size-sm);
+}
+
+.time-remaining {
+  padding: var(--space-xs) var(--space-sm);
+  background-color: rgba(0, 220, 130, 0.1);
+  border-radius: var(--border-radius);
+  font-size: var(--font-size-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  color: var(--color-primary-dark);
+}
+
+.time-icon {
+  color: var(--color-primary);
+}
+
+.event-description {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: 1.6;
+}
+
+.event-description p {
+  margin: 0;
+}
+
+.event-actions {
+  display: flex;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+}
+
+/* Empty state */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-xl) var(--space-lg);
+  text-align: center;
+  color: var(--color-text-secondary);
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.01) 0%, rgba(15, 23, 42, 0.03) 100%);
+  border-radius: var(--border-radius-lg);
+  min-height: 250px;
+  border: 1px dashed rgba(15, 23, 42, 0.1);
+}
+
+.empty-state svg {
+  margin-bottom: var(--space-md);
+  opacity: 0.5;
+  width: 80px;
+  height: 80px;
+  color: var(--color-primary);
+  filter: drop-shadow(0 4px 6px rgba(0, 220, 130, 0.1));
+}
+
+.empty-state p {
+  font-size: var(--font-size-md);
+  margin-bottom: var(--space-sm);
+}
+
+.empty-state .subtitle {
+  max-width: 300px;
+}
+
+/* Responsive Styles */
+@media (max-width: 768px) {
+  .event-controls {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .filter-buttons {
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  .selection-controls {
+    width: 100%;
+    margin-top: var(--space-sm);
+  }
+  
+  .selection-controls button {
+    flex: 1;
+  }
+  
+  .event-card {
+    grid-template-columns: 1fr;
+  }
+  
+  .event-date-badge {
+    padding: var(--space-md) 0 0 var(--space-md);
+  }
+  
+  .event-details {
+    flex-direction: column;
+    gap: var(--space-md);
+  }
+  
+  .time-remaining {
+    align-self: flex-start;
+  }
+  
+  .event-actions {
+    flex-direction: column;
+  }
+}
