@@ -55,7 +55,7 @@
                 <div class="checkbox-wrapper">
                   <input
                     type="checkbox"
-                    :checked="selectedBatches.length > 0 && selectedBatches.length === paginatedBatches.length"
+                    :checked="props.selectedBatches.length > 0 && props.selectedBatches.length === paginatedBatches.length"
                     @change="toggleAllSelection"
                     id="select-all"
                     class="custom-checkbox"
@@ -73,14 +73,14 @@
             <tr
               v-for="(batch, index) in paginatedBatches"
               :key="batch?.id || index"
-              :class="{ selected: batch?.id && selectedBatches.includes(batch.id) }"
+              :class="{ selected: batch?.id && props.selectedBatches.includes(batch.id) }"
             >
               <td>
                 <div class="checkbox-wrapper">
                   <input
                     type="checkbox"
                     :id="`batch-${index}`"
-                    :checked="batch?.id && selectedBatches.includes(batch.id)"
+                    :checked="batch?.id && props.selectedBatches.includes(batch.id)"
                     @change="batch?.id && toggleBatchSelection(batch.id)"
                     class="custom-checkbox"
                   />
@@ -111,7 +111,7 @@
 
       <div class="batch-actions">
         <div class="selection-info">
-          <span class="selected-count">{{ selectedBatches.length }} batches selected</span>
+          <span class="selected-count">{{ props.selectedBatches.length }} batches selected</span>
         </div>
         <div class="action-buttons">
           <button 
@@ -204,86 +204,46 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['update:selectedBatches', 'viewBatch', 'export-selected-batches', 'delete-selected-batches', 'prev-page', 'next-page'])
+const emit = defineEmits(['update:selected-batches', 'viewBatch', 'export-selected-batches', 'delete-selected-batches', 'prev-page', 'next-page'])
 
 const batchFilter = ref('')
+const showDeleteDialog = ref(false)
 
-const selectedBatches = ref([])
-
-watch(selectedBatches, (newValue) => {
-  emit('update:selectedBatches', newValue)
-}, { deep: true })
-
-watch(() => props.selectedBatches, (newValue) => {
-  if (newValue) {
-    selectedBatches.value = [...newValue]
-  }
-}, { immediate: true })
-
-const filteredBatches = computed(() => {
-  return props.batches.filter((batch) => {
-    if (!batchFilter.value) return true
-    return batch.id?.toLowerCase().includes(batchFilter.value.toLowerCase())
-  })
-})
-
+// Add paginatedBatches computed property
 const paginatedBatches = computed(() => {
-  return props.batches
+  return props.batches || []
 })
-
-const nextPage = () => {
-  emit('next-page')
-}
-
-const prevPage = () => {
-  emit('prev-page')
-}
 
 const toggleBatchSelection = (batchId) => {
-  if (selectedBatches.value.includes(batchId)) {
-    selectedBatches.value = selectedBatches.value.filter((id) => id !== batchId)
+  if (!batchId) return
+  
+  let newSelection
+  if (props.selectedBatches.includes(batchId)) {
+    newSelection = props.selectedBatches.filter(id => id !== batchId)
   } else {
-    selectedBatches.value.push(batchId)
+    newSelection = [...props.selectedBatches, batchId]
   }
-  emit('update:selectedBatches', selectedBatches.value)
+  emit('update:selected-batches', newSelection)
 }
 
 const toggleAllSelection = () => {
-  if (selectedBatches.value.length === paginatedBatches.value.length) {
-    // Unselect all
-    selectedBatches.value = []
-  } else {
-    // Select all
-    selectedBatches.value = paginatedBatches.value
-      .filter(batch => batch?.id)
-      .map(batch => batch.id)
-  }
-  emit('update:selectedBatches', selectedBatches.value)
+  const validBatches = props.batches?.filter(batch => batch?.id) || []
+  const newSelection = props.selectedBatches.length === validBatches.length ? [] : validBatches.map(batch => batch.id)
+  emit('update:selected-batches', newSelection)
 }
 
-const viewBatch = (batchId) => {
-  emit('viewBatch', batchId)
-}
-
-const exportSelectedBatches = () => {
-  emit('export-selected-batches')
-}
-
-const showDeleteDialog = ref(false)
-
-const confirmDelete = () => {
-  showDeleteDialog.value = true
-}
-
+const prevPage = () => emit('prev-page')
+const nextPage = () => emit('next-page')
+const viewBatch = (batchId) => batchId && emit('viewBatch', batchId)
+const exportSelectedBatches = () => emit('export-selected-batches')
 const deleteSelectedBatches = () => {
   showDeleteDialog.value = false
-  emit('delete-selected-batches', selectedBatches.value)
-  selectedBatches.value = []
+  emit('delete-selected-batches', props.selectedBatches)
 }
 
+// Format date helper
 const formatDate = (dateString) => {
   if (!dateString) return 'Unknown'
-  
   try {
     const date = new Date(dateString)
     return date.toLocaleDateString(undefined, {

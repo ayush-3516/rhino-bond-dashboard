@@ -56,11 +56,12 @@
         />
         <BatchTable
           :batches="paginatedBatches"
-          v-model:selected-batches="selectedBatches"
+          :selected-batches="selectedBatches"
           :batch-loading="batchLoading"
           :current-page="currentPage"
           :total-pages="totalPages"
           :loading="loading"
+          @update:selected-batches="handleUpdateSelectedBatches"
           @view-batch="viewBatch"
           @prev-page="prevPage"
           @next-page="nextPage"
@@ -77,7 +78,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
@@ -98,50 +99,56 @@ const components = {
 
 // Tab management
 const activeTab = ref('generate')
-
-// Reactive state variables
 const batches = ref([])
 const showExportDialog = ref(false)
+const selectedBatches = ref([])
+const currentBatchQRCodes = ref([])
+const loading = ref(false)
+const batchLoading = ref(false)
+const currentPage = ref(1)
+const itemsPerPage = 10
+const batchFilter = ref('')
+
+// Export settings with defaults
 const exportSettings = ref({
   size: 30,
   perRow: 4,
   margin: 10
 })
-const selectedBatches = ref([])
-
-watch(selectedBatches, (newValue) => {
-  console.log('Selected batches updated:', newValue)
-}, { deep: true })
-const currentBatchQRCodes = ref([])
-const loading = ref(false)
-const batchLoading = ref(false)
-
-// Pagination state
-const currentPage = ref(1)
-const itemsPerPage = 10
-const batchFilter = ref('')
 
 // Computed properties
 const filteredBatches = computed(() => {
-  return batches.value.filter((batch) => {
-    if (!batchFilter.value) return true
-    return batch.id?.toLowerCase().includes(batchFilter.value.toLowerCase())
-  })
+  const searchTerm = batchFilter.value.toLowerCase()
+  return batches.value.filter(batch => 
+    !searchTerm || batch?.id?.toLowerCase().includes(searchTerm)
+  )
 })
 
-const totalPages = computed(() => {
-  return Math.ceil(filteredBatches.value.length / itemsPerPage)
-})
+const totalPages = computed(() => 
+  Math.ceil(filteredBatches.value.length / itemsPerPage)
+)
 
 const paginatedBatches = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage
-  const end = start + itemsPerPage
-  return filteredBatches.value.slice(start, end)
+  return filteredBatches.value.slice(start, start + itemsPerPage)
 })
 
-const totalQrCodes = computed(() => {
-  return currentBatchQRCodes.value.length || 'N/A'
-})
+const totalQrCodes = computed(() => 
+  currentBatchQRCodes.value.length || 'N/A'
+)
+
+// Batch management methods
+const handleUpdateSelectedBatches = (newValue) => {
+  selectedBatches.value = newValue
+}
+
+const handleExportSettings = (settings) => {
+  exportSettings.value = settings
+  showExportDialog.value = false
+  if (selectedBatches.value.length) {
+    exportSelectedBatches(selectedBatches.value)
+  }
+}
 
 // Fetch all QR code batches from Supabase
 const fetchBatches = async () => {
@@ -275,18 +282,6 @@ const deleteSelectedBatches = async (batchIds) => {
 }
 
 // Export selected batches as PDF
-const handleExportSettings = (settings) => {
-  exportSettings.value = settings
-  showExportDialog.value = false
-  
-  // Create a new array from the selected batches to avoid Proxy issues
-  const batchesToExport = Array.isArray(selectedBatches.value) 
-    ? [...selectedBatches.value]
-    : []
-  
-  exportSelectedBatches(batchesToExport)
-}
-
 const exportSelectedBatches = async (selectedBatchIds) => {
   try {
     loading.value = true
