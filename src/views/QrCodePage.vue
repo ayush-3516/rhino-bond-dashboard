@@ -291,103 +291,93 @@ const exportSelectedBatches = async (selectedBatchIds) => {
   try {
     loading.value = true
     
-    // Ensure we have a valid array of batch IDs
     if (!Array.isArray(selectedBatchIds) || !selectedBatchIds.length) {
       throw new Error('No batches selected for export')
     }
     
-    // Convert Proxy to plain array if needed
     const batchIds = [...selectedBatchIds]
-    
     console.log('Exporting batches:', batchIds)
-    console.log('Batch IDs type:', typeof batchIds)
-    console.log('Batch IDs length:', batchIds.length)
     
-    console.log('Starting PDF export for batches:', selectedBatchIds)
-    
-    // Get all QR codes for selected batches
     const { data: qrCodes, error } = await supabase
       .from('qr_codes')
       .select('*')
-      .in('batch_id', selectedBatchIds)
+      .in('batch_id', batchIds)
       .order('created_at', { ascending: true })
 
     if (error) throw error
-    
     console.log('Fetched', qrCodes.length, 'QR codes for export')
 
-    // Create PDF
     const pdf = new jsPDF('p', 'mm', 'a4')
     const pageWidth = pdf.internal.pageSize.getWidth()
     const pageHeight = pdf.internal.pageSize.getHeight()
     const margin = exportSettings.value.margin
     const size = exportSettings.value.size
-    // Calculate available width and spacing
-    const availableWidth = pageWidth - margin * 2
     const codesPerRow = exportSettings.value.perRow
-    const spacing = (availableWidth - (size * codesPerRow)) / (codesPerRow - 1)
+    const spacing = (pageWidth - margin * 2 - (size * codesPerRow)) / (codesPerRow - 1)
     const qrPerPage = codesPerRow * Math.floor((pageHeight - margin * 2) / (size + 15))
     
-    let currentPage = 1
     let x = margin
     let y = margin
+    let canvases = []
 
-    for (let i = 0; i < qrCodes.length; i++) {
-      const code = qrCodes[i]
+    // Process QR codes in chunks to prevent memory issues
+    const chunkSize = 50
+    for (let i = 0; i < qrCodes.length; i += chunkSize) {
+      const chunk = qrCodes.slice(i, i + chunkSize)
       
-      // Create temporary canvas for QR code
-      const canvas = document.createElement('canvas')
-      canvas.width = size
-      canvas.height = size
-      const ctx = canvas.getContext('2d')
-      
-      console.log('Creating canvas for QR code:', code.id)
-      
-      try {
-        // Generate QR code with JSON data containing only id
+      // Generate QR codes for this chunk
+      for (const code of chunk) {
+        // Create temporary canvas
+        const canvas = document.createElement('canvas')
+        canvas.width = size * 2 // Double size for better quality
+        canvas.height = size * 2
+        const ctx = canvas.getContext('2d')
+        
+        // Generate QR code
         const qrData = JSON.stringify({ id: code.id })
         await QRCode.toCanvas(canvas, qrData, {
-          width: size,
+          width: size * 2,
           margin: 2,
           color: {
             dark: '#000000',
             light: '#ffffff',
           },
         })
-        console.log('Successfully generated QR code for:', code.id)
+
+        // Add to PDF
+        const imgData = canvas.toDataURL('image/png')
+        pdf.addImage(imgData, 'PNG', x, y, size, size)
         
-        // Verify canvas has content
-        const imageData = ctx.getImageData(0, 0, size, size)
-        console.log('Canvas image data:', imageData)
-      } catch (err) {
-        console.error('Error generating QR code:', err)
-        throw err
+        // Add manual identifier below QR code
+        pdf.setFontSize(8)
+        const identifier = code.manual_identifier
+        const textWidth = pdf.getStringUnitWidth(identifier) * pdf.internal.getFontSize() / pdf.internal.scaleFactor
+        pdf.text(identifier, x + (size - textWidth)/2, y + size + 5)
+
+        // Update position
+        x += size + spacing
+        if (x + size > pageWidth - margin) {
+          x = margin
+          y += size + 15
+        }
+
+        // New page if needed
+        if (y + size + 15 > pageHeight - margin) {
+          pdf.addPage()
+          x = margin
+          y = margin
+        }
+
+        // Store canvas for cleanup
+        canvases.push(canvas)
       }
 
-      // Add QR code to PDF
-      const imgData = canvas.toDataURL('image/png')
-      pdf.addImage(imgData, 'PNG', x, y, size, size)
-      
-      // Add manual identifier below QR code
-      pdf.setFontSize(8)
-      const identifier = code.manual_identifier
-      const textWidth = pdf.getStringUnitWidth(identifier) * pdf.internal.getFontSize() / pdf.internal.scaleFactor
-      pdf.text(identifier, x + (size - textWidth)/2, y + size + 5)
-
-      // Update position for next QR code
-      x += size + spacing
-      if (x + size > pageWidth - margin) {
-        x = margin
-        y += size + 15
-      }
-
-      // Add new page if needed
-      if ((i + 1) % qrPerPage === 0 && i < qrCodes.length - 1) {
-        pdf.addPage()
-        currentPage++
-        x = margin
-        y = margin
-      }
+      // Cleanup canvases after each chunk
+      canvases.forEach(canvas => {
+        canvas.width = 0
+        canvas.height = 0
+      })
+      canvases = []
     }
 
     // Save PDF

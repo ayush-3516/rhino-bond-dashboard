@@ -53,7 +53,7 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import QRCode from 'qrcode'
 
 const props = defineProps({
@@ -99,37 +99,73 @@ const downloadAllQrCodes = async () => {
 }
 
 const generateDisplayQRCodes = async () => {
-  const canvases = document.querySelectorAll('canvas')
-  if (!canvases) return
+  try {
+    const canvases = document.querySelectorAll('canvas')
+    if (!canvases.length) return
 
-  for (const canvas of canvases) {
-    try {
-      const ctx = canvas.getContext('2d')
-      const data = canvas.dataset.value
+    // Process canvases in chunks to prevent memory issues
+    const chunkSize = 20
+    for (let i = 0; i < canvases.length; i += chunkSize) {
+      const chunk = Array.from(canvases).slice(i, i + chunkSize)
+      
+      // Generate QR codes for this chunk
+      await Promise.all(chunk.map(async (canvas) => {
+        try {
+          const ctx = canvas.getContext('2d')
+          const data = canvas.dataset.value
 
-      await QRCode.toCanvas(canvas, data, {
-        width: 150,
-        margin: 2,
-        color: {
-          dark: '#000000',
-          light: '#ffffff',
-        },
-      })
-    } catch (error) {
-      console.error('Error generating QR code:', error)
+          // Clear previous content
+          ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+          await QRCode.toCanvas(canvas, data, {
+            width: 150,
+            margin: 2,
+            color: {
+              dark: '#000000',
+              light: '#ffffff',
+            },
+          })
+        } catch (error) {
+          console.error('Error generating QR code:', error)
+        }
+      }))
+
+      // Give the browser time to render and clean up
+      await new Promise(resolve => setTimeout(resolve, 10))
     }
+  } catch (error) {
+    console.error('Error generating QR codes:', error)
   }
+}
+
+// Cleanup function
+const cleanup = () => {
+  const canvases = document.querySelectorAll('canvas')
+  canvases.forEach(canvas => {
+    const ctx = canvas.getContext('2d')
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+  })
 }
 
 watch(
   () => props.codes,
-  async () => {
-    await generateDisplayQRCodes()
+  async (newCodes) => {
+    if (newCodes && newCodes.length) {
+      await generateDisplayQRCodes()
+    } else {
+      cleanup()
+    }
   },
 )
 
 onMounted(async () => {
-  await generateDisplayQRCodes()
+  if (props.codes && props.codes.length) {
+    await generateDisplayQRCodes()
+  }
+})
+
+onBeforeUnmount(() => {
+  cleanup()
 })
 </script>
 

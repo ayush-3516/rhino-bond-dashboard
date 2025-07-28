@@ -122,17 +122,25 @@ const previewItems = computed(() => {
 
 const validationError = computed(() => {
   const totalWidth = (size.value * perRow.value) + (margin.value * 2)
-  const spacing = (perRow.value - 1) * (size.value * 0.1) // Add 10% of QR size as spacing
+  const spacing = (perRow.value - 1) * Math.max(4, size.value * 0.1) // Minimum spacing of 4mm
   
   if (totalWidth + spacing > A4_WIDTH) {
     return `Total width (${Math.round(totalWidth + spacing)}mm) exceeds A4 page width (${A4_WIDTH}mm). Try reducing QR size or codes per row.`
   }
 
-  const qrsPerPage = Math.floor((A4_HEIGHT - margin.value * 2) / (size.value + size.value * 0.1))
-  if (qrsPerPage < perRow.value) {
-    return `QR codes are too large to fit on the page vertically. Try reducing QR size.`
-  }
+  const verticalSpacing = Math.max(4, size.value * 0.1) // Minimum vertical spacing of 4mm
+  const qrHeight = size.value + 10 // Add space for manual identifier
+  const qrsPerColumn = Math.floor((A4_HEIGHT - margin.value * 2) / (qrHeight + verticalSpacing))
+  const totalQrsPerPage = qrsPerColumn * perRow.value
   
+  if (totalQrsPerPage < 1) {
+    return `QR codes are too large to fit on the page. Try reducing QR size or margin.`
+  }
+
+  if (totalQrsPerPage < perRow.value) {
+    return `Not enough vertical space for a full row. Try reducing QR size, margin, or codes per row.`
+  }
+
   return null
 })
 
@@ -162,11 +170,19 @@ const decrementPerRow = () => {
 }
 
 const confirmSettings = () => {
-  emit('confirm', {
+  if (validationError.value) {
+    return
+  }
+
+  const settings = {
     size: size.value,
     perRow: perRow.value,
-    margin: margin.value
-  })
+    margin: margin.value,
+    spacing: Math.max(4, size.value * 0.1), // Ensure minimum spacing
+  }
+
+  emit('confirm', settings)
+  closeDialog()
 }
 
 const closeDialog = () => {
