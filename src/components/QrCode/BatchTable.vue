@@ -227,14 +227,24 @@ const toggleBatchSelection = (batchId) => {
 }
 
 const toggleAllSelection = () => {
-  const validBatches = props.batches?.filter(batch => batch?.id) || []
-  const newSelection = props.selectedBatches.length === validBatches.length ? [] : validBatches.map(batch => batch.id)
+  const validBatches = (props.batches || []).filter(batch => batch?.id) || []
+  const allSelected = validBatches.length > 0 && props.selectedBatches.length === validBatches.length
+  const newSelection = allSelected ? [] : validBatches.map(batch => batch.id)
   emit('update:selected-batches', newSelection)
+}
+
+const confirmDelete = () => {
+  if (props.selectedBatches.length === 0) return
+  showDeleteDialog.value = true
 }
 
 const prevPage = () => emit('prev-page')
 const nextPage = () => emit('next-page')
-const viewBatch = (batchId) => batchId && emit('viewBatch', batchId)
+const viewBatch = (batchId) => {
+  if (batchId) {
+    emit('viewBatch', batchId)
+  }
+}
 const exportSelectedBatches = () => emit('export-selected-batches')
 const deleteSelectedBatches = () => {
   showDeleteDialog.value = false

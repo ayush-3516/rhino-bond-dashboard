@@ -24,12 +24,13 @@
       </div>
     </div>
     
-    <div class="qr-code-list">
-      <div v-for="(code, index) in codes" :key="index" class="qr-code-item">
+    <div class="qr-code-list" ref="qrCodeListContainer">
+      <div v-for="(code, index) in codes" :key="`${code.id}-${index}`" class="qr-code-item">
         <div class="qr-code-image">
           <canvas
-            ref="qrCanvas"
+            :ref="el => setCanvasRef(el, index)"
             :data-value="JSON.stringify({ id: code.id })"
+            :data-index="index"
             width="150"
             height="150"
           ></canvas>
@@ -53,7 +54,7 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import QRCode from 'qrcode'
 
 const props = defineProps({
@@ -62,6 +63,18 @@ const props = defineProps({
     required: true,
   },
 })
+
+// Canvas management
+const qrCodeListContainer = ref(null)
+const canvasRefs = ref(new Map())
+
+const setCanvasRef = (el, index) => {
+  if (el) {
+    canvasRefs.value.set(index, el)
+  } else {
+    canvasRefs.value.delete(index)
+  }
+}
 
 // Helper functions for new features
 const shortenId = (id) => {
@@ -100,24 +113,36 @@ const downloadAllQrCodes = async () => {
 
 const generateDisplayQRCodes = async () => {
   try {
-    const canvases = document.querySelectorAll('canvas')
-    if (!canvases.length) return
+    if (!props.codes || props.codes.length === 0) {
+      return
+    }
+
+    await nextTick() // Wait for DOM updates
 
     // Process canvases in chunks to prevent memory issues
-    const chunkSize = 20
-    for (let i = 0; i < canvases.length; i += chunkSize) {
-      const chunk = Array.from(canvases).slice(i, i + chunkSize)
+    const chunkSize = 10 // Reduced chunk size
+    const canvasArray = Array.from(canvasRefs.value.values())
+    
+    for (let i = 0; i < canvasArray.length; i += chunkSize) {
+      const chunk = canvasArray.slice(i, i + chunkSize)
       
       // Generate QR codes for this chunk
-      await Promise.all(chunk.map(async (canvas) => {
+      await Promise.all(chunk.map(async (canvas, chunkIndex) => {
         try {
+          if (!canvas) return
+          
+          const actualIndex = i + chunkIndex
+          const code = props.codes[actualIndex]
+          if (!code) return
+
           const ctx = canvas.getContext('2d')
-          const data = canvas.dataset.value
+          if (!ctx) return
 
           // Clear previous content
           ctx.clearRect(0, 0, canvas.width, canvas.height)
 
-          await QRCode.toCanvas(canvas, data, {
+          const qrData = JSON.stringify({ id: code.id })
+          await QRCode.toCanvas(canvas, qrData, {
             width: 150,
             margin: 2,
             color: {
@@ -126,12 +151,12 @@ const generateDisplayQRCodes = async () => {
             },
           })
         } catch (error) {
-          console.error('Error generating QR code:', error)
+          console.error('Error generating QR code for index', i + chunkIndex, ':', error)
         }
       }))
 
-      // Give the browser time to render and clean up
-      await new Promise(resolve => setTimeout(resolve, 10))
+      // Small delay between chunks to prevent blocking
+      await new Promise(resolve => setTimeout(resolve, 5))
     }
   } catch (error) {
     console.error('Error generating QR codes:', error)
@@ -140,26 +165,36 @@ const generateDisplayQRCodes = async () => {
 
 // Cleanup function
 const cleanup = () => {
-  const canvases = document.querySelectorAll('canvas')
-  canvases.forEach(canvas => {
-    const ctx = canvas.getContext('2d')
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
-  })
+  try {
+    canvasRefs.value.forEach((canvas) => {
+      if (canvas && canvas.getContext) {
+        const ctx = canvas.getContext('2d')
+        if (ctx) {
+          ctx.clearRect(0, 0, canvas.width, canvas.height)
+        }
+      }
+    })
+    canvasRefs.value.clear()
+  } catch (error) {
+    console.error('Error during cleanup:', error)
+  }
 }
 
 watch(
   () => props.codes,
-  async (newCodes) => {
-    if (newCodes && newCodes.length) {
+  async (newCodes, oldCodes) => {
+    // Cleanup previous canvases
+    cleanup()
+    
+    if (newCodes && newCodes.length > 0) {
       await generateDisplayQRCodes()
-    } else {
-      cleanup()
     }
   },
+  { deep: true }
 )
 
 onMounted(async () => {
-  if (props.codes && props.codes.length) {
+  if (props.codes && props.codes.length > 0) {
     await generateDisplayQRCodes()
   }
 })

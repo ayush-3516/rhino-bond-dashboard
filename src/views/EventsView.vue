@@ -1,18 +1,54 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, computed } from 'vue'
 import EventForm from '@/components/events/EventForm.vue'
 import EventList from '@/components/events/EventList.vue'
+import EventListOptimized from '@/components/events/EventListOptimized.vue'
+import EventPerformanceMonitor from '@/components/events/EventPerformanceMonitor.vue'
 import { useEventStore } from '@/stores/event'
+import { useEventPerformance } from '@/composables/useEventPerformance'
 
 const eventStore = useEventStore()
 const showForm = ref(false)
+const showPerformanceMonitor = ref(false)
+const useOptimizedList = ref(true) // Toggle for A/B testing
 
+// Performance monitoring
+const { metrics, measurePerformance } = useEventPerformance()
+
+// Computed properties for better performance
+const events = computed(() => eventStore.events)
+const loading = computed(() => eventStore.loading)
+const error = computed(() => eventStore.error)
+
+// Enhanced onMounted with performance measurement
 onMounted(async () => {
-  await eventStore.fetchEvents()
+  const fetchEvents = measurePerformance('render', async () => {
+    await eventStore.fetchEvents()
+  })
+  
+  await fetchEvents()
 })
 
 function toggleForm() {
   showForm.value = !showForm.value
+}
+
+function togglePerformanceMonitor() {
+  showPerformanceMonitor.value = !showPerformanceMonitor.value
+}
+
+function toggleOptimizedList() {
+  useOptimizedList.value = !useOptimizedList.value
+}
+
+// Event handlers
+function handleCreateEvent() {
+  showForm.value = true
+}
+
+function handleEditEvent(event) {
+  // Handle edit event
+  console.log('Edit event:', event)
 }
 </script>
 
@@ -25,22 +61,54 @@ function toggleForm() {
           <h1>Event Management</h1>
           <p class="header-subtitle">Create and manage events for your conservation initiatives</p>
         </div>
-        <button class="btn btn-primary toggle-form-btn" @click="toggleForm">
-          <span>{{ showForm ? 'Hide Form' : 'Create New Event' }}</span>
-          <svg v-if="!showForm" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="12" y1="5" x2="12" y2="19"></line>
-            <line x1="5" y1="12" x2="19" y2="12"></line>
-          </svg>
-          <svg v-else xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
-        </button>
+        <div class="header-actions">
+          <button 
+            class="btn btn-secondary" 
+            @click="togglePerformanceMonitor"
+            title="Toggle Performance Monitor"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 3v5h5"></path>
+              <path d="M21 21v-5h-5"></path>
+              <path d="M21 7.5a9.5 9.5 0 1 0-6.5 9.3"></path>
+            </svg>
+            {{ showPerformanceMonitor ? 'Hide' : 'Performance' }}
+          </button>
+          <button 
+            class="btn btn-secondary" 
+            @click="toggleOptimizedList"
+            title="Toggle Optimized List"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M16 3l4 4-4 4"></path>
+              <path d="M21 7H9"></path>
+              <path d="M8 17l-4-4 4-4"></path>
+              <path d="M3 13h12"></path>
+            </svg>
+            {{ useOptimizedList ? 'Standard' : 'Optimized' }}
+          </button>
+          <button class="btn btn-primary toggle-form-btn" @click="toggleForm">
+            <span>{{ showForm ? 'Hide Form' : 'Create New Event' }}</span>
+            <svg v-if="!showForm" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            <svg v-else xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
       </div>
       <div class="header-accent"></div>
     </header>
 
     <div class="content">
+      <!-- Performance Monitor (optional) -->
+      <transition name="slide-fade">
+        <EventPerformanceMonitor v-if="showPerformanceMonitor" />
+      </transition>
+      
       <transition name="slide-fade">
         <div v-if="showForm" class="form-section">
           <div class="card card-form">
@@ -65,6 +133,13 @@ function toggleForm() {
           <div class="card-header">
             <h2>Events</h2>
             <div class="card-actions">
+              <span 
+                v-if="useOptimizedList" 
+                class="optimization-badge"
+                title="Using optimized list component"
+              >
+                ⚡ Optimized
+              </span>
               <button class="btn btn-secondary btn-sm" @click="eventStore.fetchEvents()">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38"/>
@@ -74,7 +149,18 @@ function toggleForm() {
             </div>
           </div>
           <div class="card-body">
-            <EventList @create-event="showForm = true" />
+            <!-- Conditional rendering of optimized vs standard list -->
+            <EventListOptimized 
+              v-if="useOptimizedList"
+              :show-search="true"
+              :items-per-page="20"
+              @create-event="handleCreateEvent"
+              @edit-event="handleEditEvent"
+            />
+            <EventList 
+              v-else
+              @create-event="showForm = true" 
+            />
           </div>
         </div>
       </div>
@@ -138,6 +224,16 @@ function toggleForm() {
 .header-content {
   position: relative;
   z-index: 2;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-lg);
+}
+
+.header-actions {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: center;
 }
 
 .header-title {
@@ -309,36 +405,122 @@ h1 {
 }
 
 .btn-secondary {
-  background: linear-gradient(to bottom right,
-    rgba(15, 23, 42, 0.05),
-    rgba(15, 23, 42, 0.02)
-  );
-  border: 1px solid rgba(15, 23, 42, 0.1);
-  color: var(--color-text-secondary);
-  padding: var(--space-sm) var(--space-lg);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-md);
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: var(--border-radius);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
   transition: all 0.2s ease;
+  backdrop-filter: blur(8px);
 }
 
 .btn-secondary:hover {
-  background: rgba(15, 23, 42, 0.08);
-  border-color: rgba(15, 23, 42, 0.15);
-  color: var(--color-text);
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
 }
 
-/* Animation for form */
+.optimization-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: 4px 8px;
+  background: rgba(0, 220, 130, 0.1);
+  color: var(--color-primary);
+  border: 1px solid rgba(0, 220, 130, 0.2);
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: help;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .header-content {
+    flex-direction: column;
+    gap: var(--space-md);
+    text-align: center;
+  }
+  
+  .header-actions {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 768px) {
+  .events-view {
+    padding: var(--space-md);
+  }
+  
+  .events-header {
+    padding: var(--space-xl) var(--space-md);
+  }
+  
+  h1 {
+    font-size: var(--font-size-xl);
+  }
+  
+  .header-subtitle {
+    font-size: var(--font-size-sm);
+  }
+  
+  .header-actions {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .btn-secondary,
+  .toggle-form-btn {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .card-header {
+    flex-direction: column;
+    gap: var(--space-sm);
+    align-items: stretch;
+  }
+  
+  .card-actions {
+    justify-content: flex-start;
+  }
+}
+
+/* Enhanced animations */
+@keyframes slideInFromTop {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .slide-fade-enter-active {
-  transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+  transition: all 0.3s ease-out;
 }
 
 .slide-fade-leave-active {
-  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  transition: all 0.3s ease-in;
 }
 
-.slide-fade-enter-from,
-.slide-fade-leave-to {
-  transform: translateY(-20px);
+.slide-fade-enter-from {
   opacity: 0;
+  transform: translateY(-20px);
+}
+
+.slide-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-20px);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -406,46 +588,6 @@ h1 {
     background: rgba(255, 255, 255, 0.1);
     border-color: rgba(255, 255, 255, 0.15);
     color: #ffffff;
-  }
-}
-
-@media (max-width: 768px) {
-  .events-view {
-    padding: var(--space-md) var(--space-sm);
-  }
-  
-  .events-header {
-    padding: var(--space-lg) var(--space-md);
-    margin-bottom: var(--space-lg);
-  }
-  
-  .header-content {
-    flex-direction: column;
-    gap: var(--space-lg);
-    align-items: flex-start;
-  }
-  
-  .toggle-form-btn {
-    width: 100%;
-    justify-content: center;
-    padding: var(--space-md) var(--space-lg);
-  }
-  
-  .card-header {
-    padding: var(--space-md);
-    flex-direction: column;
-    gap: var(--space-sm);
-    align-items: flex-start;
-  }
-  
-  .card-actions {
-    width: 100%;
-    justify-content: flex-start;
-  }
-  
-  .btn-secondary {
-    width: 100%;
-    justify-content: center;
   }
 }
 </style>

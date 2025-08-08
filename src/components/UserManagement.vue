@@ -25,19 +25,23 @@ const showUserDetails = ref(null)
 
 // Watch for filtered users from parent
 watchEffect(() => {
-  if (props.filteredUsers && props.filteredUsers.length > 0) {
-    users.value = props.filteredUsers
-  }
-  if (props.isLoading !== undefined) {
-    loading.value = props.isLoading
-  }
+  console.log('UserManagement watchEffect triggered')
+  console.log('props.filteredUsers:', props.filteredUsers?.length || 0)
+  console.log('props.isLoading:', props.isLoading)
+  
+  // Always update users when props change
+  users.value = props.filteredUsers || []
+  loading.value = props.isLoading || false
+  
+  console.log('Updated users from props:', users.value.length)
+  console.log('Updated loading from props:', loading.value)
 })
 
 // Function to copy text to clipboard
 async function copyToClipboard(text, userId, type = 'User ID') {
   try {
-    await navigator.clipboard.writeText(text);
-    copySuccess.value = userId;
+    await navigator.clipboard.writeText(text)
+    copySuccess.value = userId
     
     // Show toast notification
     const message = document.createElement('div');
@@ -72,9 +76,28 @@ async function fetchUsers() {
     })
 
     if (error) throw error
-    users.value = data
+    users.value = data || []
   } catch (error) {
     console.error('Error fetching users:', error)
+    users.value = [] // Ensure users is always an array
+    
+    // Show error notification
+    const message = document.createElement('div')
+    message.className = 'toast-message error'
+    message.textContent = 'Failed to load users. Please try again.'
+    document.body.appendChild(message)
+    
+    setTimeout(() => {
+      message.classList.add('show')
+      setTimeout(() => {
+        message.classList.remove('show')
+        setTimeout(() => {
+          if (document.body.contains(message)) {
+            document.body.removeChild(message)
+          }
+        }, 300)
+      }, 3000)
+    }, 100)
   } finally {
     loading.value = false
     emit('update')
@@ -498,13 +521,20 @@ function toggleUserDetails(userId) {
 
 // Initialize
 const initialize = async () => {
-  if (!props.filteredUsers || props.filteredUsers.length === 0) {
+  console.log('UserManagement initializing, props.filteredUsers:', props.filteredUsers?.length || 0)
+  // Always use filtered users from parent if provided, even if it's an empty array
+  if (props.filteredUsers !== undefined && props.filteredUsers !== null) {
+    console.log('Using filtered users from parent:', props.filteredUsers.length)
+    users.value = props.filteredUsers
+  } else {
+    console.log('No filtered users from parent, fetching users locally')
     await fetchUsers()
   }
 }
 
 onMounted(() => {
-  initialize()
+  console.log('UserManagement mounted')
+  // watchEffect will handle initialization
 })
 </script>
 

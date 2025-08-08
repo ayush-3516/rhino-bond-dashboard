@@ -162,39 +162,7 @@
         </div>
       </div>
 
-      <!-- Charts Section -->
-      <div class="charts-section">
-        <div class="section-title">
-          <h2>Analytics</h2>
-        </div>
-        <div class="charts-grid">
-          <div class="chart-card points-chart">
-            <div class="chart-header">
-              <h3>Points Activity Over Time</h3>
-              <div class="chart-actions">
-                <select v-model="pointsChartTimeframe" @change="updatePointsChart">
-                  <option value="7days">Last 7 Days</option>
-                  <option value="30days">Last 30 Days</option>
-                  <option value="90days">Last 90 Days</option>
-                  <option value="1year">Last Year</option>
-                </select>
-              </div>
-            </div>
-            <canvas ref="pointsChart"></canvas>
-          </div>
 
-          <div class="chart-card redemptions-chart">
-            <div class="chart-header">
-              <h3>Redemption Products</h3>
-              <div class="chart-actions">
-                <button class="chart-toggle" :class="{ active: redemptionChartView === 'points' }" @click="redemptionChartView = 'points'">Points</button>
-                <button class="chart-toggle" :class="{ active: redemptionChartView === 'stock' }" @click="redemptionChartView = 'stock'">Stock</button>
-              </div>
-            </div>
-            <canvas ref="redemptionsChart"></canvas>
-          </div>
-        </div>
-      </div>
 
       <!-- Recent Activity Section -->
       <div class="recent-activity-section">
@@ -252,7 +220,6 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import Chart from 'chart.js/auto'
 import { supabase } from '../supabase'
 import WelcomeBanner from '../components/WelcomeBanner.vue'
 import { format, differenceInDays, parseISO, subDays, formatDistance } from 'date-fns'
@@ -279,14 +246,6 @@ const nextEventDate = ref(null)
 const userTrend = ref(5.2)
 const qrCodeTrend = ref(2.8)
 
-// Chart references and settings
-const pointsChart = ref(null)
-const redemptionsChart = ref(null)
-const pointsChartTimeframe = ref('30days')
-const redemptionChartView = ref('points')
-const pointsChartInstance = ref(null)
-const redemptionsChartInstance = ref(null)
-
 // Recent transactions
 const recentTransactions = ref([])
 
@@ -304,7 +263,6 @@ onMounted(async () => {
   try {
     await fetchMetrics()
     await fetchRecentTransactions()
-    await setupCharts()
   } catch (error) {
     console.error('Dashboard error:', error)
   } finally {
@@ -401,225 +359,12 @@ async function fetchRecentTransactions() {
   }
 }
 
-// Set up charts based on data
-async function setupCharts() {
-  await setupPointsChart()
-  await setupRedemptionsChart()
-}
-
-// Set up points activity chart
-async function setupPointsChart() {
-  // Calculate date range based on selected timeframe
-  const endDate = new Date()
-  let startDate
-  
-  switch (pointsChartTimeframe.value) {
-    case '7days':
-      startDate = subDays(endDate, 7)
-      break
-    case '90days':
-      startDate = subDays(endDate, 90)
-      break
-    case '1year':
-      startDate = subDays(endDate, 365)
-      break
-    case '30days':
-    default:
-      startDate = subDays(endDate, 30)
-      break
-  }
-
-  // Fetch points activity data
-  const { data: pointsData } = await supabase
-    .from('points_transactions')
-    .select('timestamp, points, type')
-    .gte('timestamp', startDate.toISOString())
-    .order('timestamp', { ascending: true })
-
-  // Process data for chart display
-  const dateFormat = pointsChartTimeframe.value === '1year' ? 'MMM' : 'MMM d'
-  const labels = []
-  const earnData = []
-  const redeemData = []
-  const airdropData = []
-  
-  // Group data by date
-  const pointsByDate = {}
-  
-  // Initialize date points with all dates in the range
-  let currentDate = new Date(startDate)
-  while (currentDate <= endDate) {
-    const dateKey = format(currentDate, dateFormat)
-    if (!pointsByDate[dateKey]) {
-      pointsByDate[dateKey] = { earn: 0, redeem: 0, airdrop: 0 }
-    }
-    currentDate = new Date(currentDate.setDate(currentDate.getDate() + 1))
-  }
-  
-  // Add actual points data
-  pointsData?.forEach(transaction => {
-    const dateKey = format(new Date(transaction.timestamp), dateFormat)
-    if (!pointsByDate[dateKey]) {
-      pointsByDate[dateKey] = { earn: 0, redeem: 0, airdrop: 0 }
-    }
-    pointsByDate[dateKey][transaction.type] += transaction.points
-  })
-  
-  // Convert to arrays for chart
-  Object.keys(pointsByDate).sort().forEach(date => {
-    labels.push(date)
-    earnData.push(pointsByDate[date].earn)
-    redeemData.push(pointsByDate[date].redeem)
-    airdropData.push(pointsByDate[date].airdrop)
-  })
-
-  // Create or update chart
-  if (pointsChartInstance.value) {
-    pointsChartInstance.value.destroy()
-  }
-
-  pointsChartInstance.value = new Chart(pointsChart.value, {
-    type: 'bar',
-    data: {
-      labels: labels,
-      datasets: [
-        {
-          label: 'Points Earned',
-          data: earnData,
-          backgroundColor: 'rgba(54, 162, 235, 0.7)',
-          borderColor: 'rgba(54, 162, 235, 1)',
-          borderWidth: 1
-        },
-        {
-          label: 'Points Airdropped',
-          data: airdropData,
-          backgroundColor: 'rgba(75, 192, 192, 0.7)',
-          borderColor: 'rgba(75, 192, 192, 1)',
-          borderWidth: 1
-        },
-        {
-          label: 'Points Redeemed',
-          data: redeemData,
-          backgroundColor: 'rgba(255, 99, 132, 0.7)',
-          borderColor: 'rgba(255, 99, 132, 1)',
-          borderWidth: 1
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        tooltip: {
-          mode: 'index',
-          intersect: false
-        },
-        legend: {
-          position: 'top'
-        }
-      },
-      scales: {
-        x: {
-          grid: {
-            display: false
-          }
-        },
-        y: {
-          beginAtZero: true,
-          grid: {
-            color: 'rgba(0, 0, 0, 0.05)'
-          }
-        }
-      }
-    }
-  })
-}
-
-// Set up redemption products chart
-async function setupRedemptionsChart() {
-  // Fetch redemption products data
-  const { data: productsData } = await supabase
-    .from('redemption_products')
-    .select('name, points_required, stock, is_active')
-    .eq('is_active', true)
-    .order('points_required', { ascending: false })
-    .limit(10)
-
-  // Create chart data based on selected view
-  const labels = productsData?.map(p => p.name) || []
-  const data = productsData?.map(p => 
-    redemptionChartView.value === 'points' ? p.points_required : p.stock
-  ) || []
-  
-  // Create or update chart
-  if (redemptionsChartInstance.value) {
-    redemptionsChartInstance.value.destroy()
-  }
-
-  redemptionsChartInstance.value = new Chart(redemptionsChart.value, {
-    type: 'doughnut',
-    data: {
-      labels: labels,
-      datasets: [{
-        label: redemptionChartView.value === 'points' ? 'Points Required' : 'Stock Available',
-        data: data,
-        backgroundColor: [
-          '#FF6384',
-          '#36A2EB',
-          '#FFCE56',
-          '#4BC0C0',
-          '#9966FF',
-          '#FF9F40',
-          '#41B883',
-          '#E46651',
-          '#00D8FF',
-          '#DD1B16'
-        ],
-        borderWidth: 1
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          position: 'right',
-          labels: {
-            boxWidth: 12
-          }
-        },
-        tooltip: {
-          callbacks: {
-            label: function(context) {
-              const label = context.label || '';
-              const value = context.raw;
-              const datasetLabel = context.dataset.label || '';
-              return `${label}: ${value} ${datasetLabel.toLowerCase()}`;
-            }
-          }
-        }
-      }
-    }
-  })
-}
-
-// Chart update function
-async function updatePointsChart() {
-  await setupPointsChart()
-}
-
-// Update charts when redemption view changes
-async function updateRedemptionChart() {
-  await setupRedemptionsChart()
-}
-
 // Dashboard refresh function
 async function refreshDashboard() {
   isLoading.value = true
   try {
     await fetchMetrics()
     await fetchRecentTransactions()
-    await setupCharts()
   } catch (error) {
     console.error('Dashboard refresh error:', error)
   } finally {
@@ -933,72 +678,6 @@ function getTransactionTitle(transaction) {
   text-decoration: underline;
 }
 
-/* Charts Section */
-.charts-section {
-  margin-bottom: 2rem;
-}
-
-.charts-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
-  gap: 1.5rem;
-}
-
-.chart-card {
-  background: white;
-  padding: 1.5rem;
-  border-radius: 0.75rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-}
-
-.chart-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-
-.chart-header h3 {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 500;
-  color: #666;
-}
-
-.chart-actions {
-  display: flex;
-  align-items: center;
-}
-
-.chart-actions select {
-  padding: 0.25rem 0.5rem;
-  border: 1px solid #e0e0e0;
-  border-radius: 0.25rem;
-  font-size: 0.8rem;
-  background: #f8f8f8;
-}
-
-.chart-toggle {
-  padding: 0.25rem 0.5rem;
-  background: #f8f8f8;
-  border: 1px solid #e0e0e0;
-  border-radius: 0.25rem;
-  font-size: 0.8rem;
-  cursor: pointer;
-  margin-left: 0.5rem;
-}
-
-.chart-toggle.active {
-  background: var(--color-primary);
-  color: white;
-  border-color: var(--color-primary);
-}
-
-.points-chart canvas,
-.redemptions-chart canvas {
-  height: 300px;
-}
-
 /* Recent Activity Section */
 .recent-activity-section {
   margin-bottom: 2rem;
@@ -1131,10 +810,6 @@ function getTransactionTitle(transaction) {
   }
 
   .metrics-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .charts-grid {
     grid-template-columns: 1fr;
   }
 }

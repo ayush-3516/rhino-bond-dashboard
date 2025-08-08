@@ -16,19 +16,50 @@
             <input 
               type="text" 
               v-model="searchTerm" 
-              placeholder="Search users..." 
+              placeholder="Search users by name, email, phone or ID..." 
               class="search-input"
               @input="filterUsers"
             />
+            <button 
+              v-if="searchTerm" 
+              @click="clearSearch" 
+              class="clear-search-btn"
+              title="Clear search"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
           </div>
-          
-          <button class="action-button" @click="showAddUserModal = true">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="12" y1="5" x2="12" y2="19"></line>
-              <line x1="5" y1="12" x2="19" y2="12"></line>
-            </svg>
-            <span>Add User</span>
-          </button>
+
+          <!-- Performance Controls -->
+          <div class="performance-controls">
+            <button 
+              @click="toggleOptimizedView" 
+              :class="{ active: useOptimizedComponent }"
+              class="toggle-btn"
+              title="Toggle optimized component"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+              </svg>
+              {{ useOptimizedComponent ? 'Enhanced' : 'Standard' }}
+            </button>
+
+            <button 
+              @click="togglePerformanceDashboard" 
+              :class="{ active: showPerformanceDashboard }"
+              class="toggle-btn"
+              title="Toggle performance dashboard"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                <path d="M9 9h6v6H9z"></path>
+              </svg>
+              Metrics
+            </button>
+          </div>
         </div>
       </div>
 
@@ -117,46 +148,100 @@
     </div>
 
     <div class="users-container">
-      <!-- User Management Component -->
+      <!-- Performance Dashboard -->
+      <PerformanceDashboard 
+        v-if="showPerformanceDashboard"
+        :refresh-interval="5000"
+        class="performance-dashboard-section"
+      />
+
+      <!-- Toggle between optimized and standard user management -->
+      <div class="optimization-toggle">
+        <button 
+          class="btn btn-secondary btn-sm" 
+          @click="toggleOptimizedView"
+          title="Toggle Optimized View"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M16 3l4 4-4 4"></path>
+            <path d="M21 7H9"></path>
+            <path d="M8 17l-4-4 4-4"></path>
+            <path d="M3 13h12"></path>
+          </svg>
+          {{ useOptimizedComponent ? 'Standard View' : 'Optimized View' }}
+        </button>
+        <span 
+          v-if="useOptimizedComponent" 
+          class="optimization-badge"
+          title="Using optimized user management component"
+        >
+          ⚡ {{ componentToUse === 'UserManagementEnhanced' ? 'Enhanced' : 'Optimized' }}
+        </span>
+      </div>
+
+      <!-- Enhanced User Management Component (for large datasets) -->
+      <UserManagementEnhanced 
+        v-if="componentToUse === 'UserManagementEnhanced'"
+        key="enhanced"
+        :page-size="20"
+        :use-virtual-scrolling="totalUsers > 1000"
+        :enable-benchmarking="true"
+        @update="handleUserUpdate"
+      />
+
+      <!-- Optimized User Management Component -->
+      <UserManagementOptimized 
+        v-else-if="componentToUse === 'UserManagementOptimized'"
+        key="optimized"
+        :page-size="20"
+        @update="handleUserUpdate"
+      />
+      
+      <!-- Standard User Management Component -->
       <UserManagement 
+        v-else
+        key="standard"
         ref="userManagementComponent"
         :filtered-users="filteredUsers"
         :is-loading="loading"
         @update="handleUserUpdate"
       />
-    </div>
-
-    <!-- Add User Modal Placeholder -->
-    <div v-if="showAddUserModal" class="modal-backdrop" @click="showAddUserModal = false">
-      <div class="modal-content" @click.stop>
-        <div class="modal-header">
-          <h2>Add New User</h2>
-          <button class="close-button" @click="showAddUserModal = false">×</button>
-        </div>
-        <div class="modal-body">
-          <!-- Add user form would go here -->
-          <p class="text-center">User creation functionality to be implemented</p>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-secondary" @click="showAddUserModal = false">Cancel</button>
-          <button class="btn btn-primary" @click="showAddUserModal = false">Create User</button>
-        </div>
+      
+      <!-- Debug info -->
+      <div v-if="true" style="margin-top: 20px; padding: 10px; background: #f0f0f0; font-family: monospace; font-size: 12px;">
+        <strong>Debug Info:</strong><br>
+        Component to use: {{ componentToUse }}<br>
+        Use optimized: {{ useOptimizedComponent }}<br>
+        Total users: {{ totalUsers }}<br>
+        Filtered users: {{ filteredUsers.length }}<br>
+        Loading: {{ loading }}<br>
+        Users array: {{ users.length }}
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, defineAsyncComponent } from 'vue'
+import { supabase, withServiceRole } from '@/supabase'
 import UserManagement from '@/components/UserManagement.vue'
-import { supabase, withServiceRole } from '../supabase'
+import UserManagementOptimized from '@/components/UserManagementOptimized.vue'
+
+// Lazy load less critical components
+const UserManagementEnhanced = defineAsyncComponent(() => 
+  import('@/components/UserManagementEnhanced.vue')
+)
+const PerformanceDashboard = defineAsyncComponent(() => 
+  import('@/components/PerformanceDashboard.vue')
+)
 
 // State
 const loading = ref(false)
 const users = ref([])
 const filteredUsers = ref([])
 const searchTerm = ref('')
-const showAddUserModal = ref(false)
+const useOptimizedComponent = ref(false) // Default to standard view
+const showPerformanceDashboard = ref(false)
 
 // Filters
 const filters = ref({
@@ -173,6 +258,14 @@ const verifiedUsers = computed(() => users.value.filter(user => user.admin_confi
 // User management component reference
 const userManagementComponent = ref(null)
 
+// Component selection based on performance needs
+const componentToUse = computed(() => {
+  if (totalUsers.value > 1000 || localStorage.getItem('force-enhanced-mode') === 'true') {
+    return 'UserManagementEnhanced'
+  }
+  return useOptimizedComponent.value ? 'UserManagementOptimized' : 'UserManagement'
+})
+
 // Fetch users
 async function fetchUsers() {
   loading.value = true
@@ -185,10 +278,13 @@ async function fetchUsers() {
     })
 
     if (error) throw error
-    users.value = data
+    users.value = data || [] // Ensure it's always an array
+    console.log('Fetched users:', users.value.length, 'users')
     filterUsers()
   } catch (error) {
     console.error('Error fetching users:', error)
+    users.value = [] // Reset to empty array on error
+    filteredUsers.value = []
   } finally {
     loading.value = false
   }
@@ -197,6 +293,7 @@ async function fetchUsers() {
 // Filter users based on search and filters
 function filterUsers() {
   let result = [...users.value]
+  console.log('Filtering users:', users.value.length, 'total users')
   
   // Apply search filter
   if (searchTerm.value.trim() !== '') {
@@ -207,18 +304,22 @@ function filterUsers() {
       user.phone?.toLowerCase().includes(term) ||
       user.id.toLowerCase().includes(term)
     )
+    console.log('After search filter:', result.length, 'users')
   }
   
   // Apply role filter
   if (filters.value.role) {
     result = result.filter(user => user.role === filters.value.role)
+    console.log('After role filter:', result.length, 'users')
   }
   
   // Apply verification filter
   if (filters.value.verification === 'verified') {
     result = result.filter(user => user.admin_confirmation)
+    console.log('After verification filter (verified):', result.length, 'users')
   } else if (filters.value.verification === 'unverified') {
     result = result.filter(user => !user.admin_confirmation)
+    console.log('After verification filter (unverified):', result.length, 'users')
   }
   
   // Apply sorting
@@ -233,6 +334,7 @@ function filterUsers() {
   })
   
   filteredUsers.value = result
+  console.log('Final filtered users:', filteredUsers.value.length, 'users')
 }
 
 // Reset all filters
@@ -246,14 +348,77 @@ function resetFilters() {
   filterUsers()
 }
 
+// Clear search
+function clearSearch() {
+  searchTerm.value = ''
+  filterUsers()
+}
+
 // Handle user update events from the UserManagement component
 function handleUserUpdate() {
-  fetchUsers()
+  if (componentToUse.value === 'UserManagement') {
+    fetchUsers()
+  }
+  // Optimized and Enhanced components handle their own updates
+}
+
+// Toggle between optimized and standard view
+function toggleOptimizedView() {
+  useOptimizedComponent.value = !useOptimizedComponent.value
+  console.log('Toggled optimized view to:', useOptimizedComponent.value)
+  console.log('Component to use:', componentToUse.value)
+  console.log('Available users:', users.value.length)
+  console.log('Filtered users:', filteredUsers.value.length)
+  
+  // Save preference
+  localStorage.setItem('user-management-optimized', useOptimizedComponent.value.toString())
+  
+  // If switching to standard view, ensure users data is available
+  if (!useOptimizedComponent.value) {
+    if (users.value.length === 0) {
+      console.log('No users data, fetching...')
+      fetchUsers()
+    } else {
+      // Ensure filtered users are up to date
+      console.log('Users data exists, re-filtering...')
+      filterUsers()
+    }
+  }
+}
+
+// Toggle performance dashboard
+function togglePerformanceDashboard() {
+  showPerformanceDashboard.value = !showPerformanceDashboard.value
+  
+  // Save preference
+  localStorage.setItem('show-performance-dashboard', showPerformanceDashboard.value.toString())
 }
 
 // Initialize
-onMounted(() => {
-  fetchUsers()
+onMounted(async () => {
+  console.log('=== UsersView mounted ===')
+  
+  // Load user preferences
+  const savedOptimizedPreference = localStorage.getItem('user-management-optimized')
+  if (savedOptimizedPreference !== null) {
+    useOptimizedComponent.value = savedOptimizedPreference === 'true'
+  }
+  
+  const savedDashboardPreference = localStorage.getItem('show-performance-dashboard')
+  if (savedDashboardPreference !== null) {
+    showPerformanceDashboard.value = savedDashboardPreference === 'true'
+  }
+  
+  console.log('Component settings:', {
+    useOptimizedComponent: useOptimizedComponent.value,
+    componentToUse: componentToUse.value,
+    showPerformanceDashboard: showPerformanceDashboard.value
+  })
+  
+  // Always fetch users initially to ensure data is available
+  console.log('Starting fetchUsers...')
+  await fetchUsers()
+  console.log('fetchUsers completed. Users:', users.value.length, 'Filtered:', filteredUsers.value.length)
 })
 </script>
 
@@ -301,50 +466,98 @@ onMounted(() => {
 
 .search-box {
   position: relative;
-  min-width: 250px;
+  min-width: 300px;
+  max-width: 400px;
 }
 
 .search-icon {
   position: absolute;
-  left: 12px;
+  left: 14px;
   top: 50%;
   transform: translateY(-50%);
-  width: 16px;
-  height: 16px;
-  color: #999;
+  width: 18px;
+  height: 18px;
+  color: #9ca3af;
+  z-index: 2;
 }
 
 .search-input {
   width: 100%;
-  padding: 10px 10px 10px 36px;
-  border: 1px solid #ddd;
-  border-radius: 20px;
-  font-size: 0.9rem;
-  transition: all var(--transition-duration);
+  padding: 12px 40px 12px 44px;
+  border: 1px solid #e5e7eb;
+  border-radius: 24px;
+  font-size: 0.95rem;
+  background-color: #f9fafb;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .search-input:focus {
   outline: none;
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px rgba(0, 220, 130, 0.1);
+  background-color: white;
+  box-shadow: 0 0 0 3px rgba(66, 185, 131, 0.1), 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.action-button {
+.search-input::placeholder {
+  color: #9ca3af;
+  font-size: 0.9rem;
+}
+
+.clear-search-btn {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #9ca3af;
+  transition: all 0.2s ease;
+  z-index: 2;
+}
+
+.clear-search-btn:hover {
+  background-color: #f3f4f6;
+  color: #6b7280;
+}
+
+/* Performance Controls */
+.performance-controls {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.toggle-btn {
   display: flex;
   align-items: center;
   gap: var(--space-xs);
-  padding: var(--space-sm) var(--space-md);
-  background-color: var(--color-primary);
-  color: white;
-  border: none;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid #e5e7eb;
   border-radius: var(--border-radius);
+  background: white;
+  color: var(--color-text);
+  font-size: 0.8rem;
   cursor: pointer;
   transition: all 0.2s ease;
-  font-weight: 500;
+  white-space: nowrap;
 }
 
-.action-button:hover {
-  background-color: color-mix(in srgb, var(--color-primary) 90%, black);
+.toggle-btn:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.toggle-btn.active {
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
 }
 
 /* Stats Grid */
@@ -506,65 +719,35 @@ onMounted(() => {
   overflow: hidden;
 }
 
-/* Modal */
-.modal-backdrop {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+/* Performance Dashboard Section */
+.performance-dashboard-section {
+  margin-bottom: var(--space-lg);
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: var(--space-lg);
+}
+
+/* Optimization Toggle */
+.optimization-toggle {
   display: flex;
   align-items: center;
-  justify-content: center;
-  z-index: 100;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+  padding-bottom: var(--space-md);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
 }
 
-.modal-content {
-  background-color: white;
-  border-radius: var(--border-radius);
-  width: 100%;
-  max-width: 500px;
-  max-height: 90vh;
-  overflow-y: auto;
-  box-shadow: var(--shadow-lg);
-}
-
-.modal-header {
-  padding: var(--space-md);
-  display: flex;
-  justify-content: space-between;
+.optimization-badge {
+  display: inline-flex;
   align-items: center;
-  border-bottom: 1px solid #eee;
-}
-
-.modal-header h2 {
-  margin: 0;
-  font-size: 1.25rem;
-}
-
-.close-button {
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer;
-  color: var(--color-text-secondary);
-}
-
-.modal-body {
-  padding: var(--space-md);
-}
-
-.modal-footer {
-  padding: var(--space-md);
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--space-md);
-  border-top: 1px solid #eee;
-}
-
-.text-center {
-  text-align: center;
+  gap: var(--space-xs);
+  padding: 4px 8px;
+  background: rgba(0, 220, 130, 0.1);
+  color: var(--color-primary);
+  border: 1px solid rgba(0, 220, 130, 0.2);
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: help;
 }
 
 /* Responsive adjustments */
@@ -578,11 +761,23 @@ onMounted(() => {
   .header-actions {
     width: 100%;
     flex-direction: column;
+    gap: var(--space-sm);
   }
   
   .search-box {
     width: 100%;
     min-width: unset;
+    max-width: unset;
+  }
+  
+  .performance-controls {
+    width: 100%;
+    justify-content: stretch;
+  }
+  
+  .toggle-btn {
+    flex: 1;
+    justify-content: center;
   }
   
   .stats-grid {

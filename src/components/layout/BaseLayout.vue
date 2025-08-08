@@ -3,6 +3,7 @@ import { RouterView } from 'vue-router'
 import { ref, onMounted, onUnmounted } from 'vue'
 import AppHeader from './AppHeader.vue'
 import AppFooter from './AppFooter.vue'
+import NotificationToast from '../NotificationToast.vue'
 
 defineProps<{
   isMenuOpen: boolean
@@ -57,6 +58,7 @@ onUnmounted(() => {
     </main>
 
     <AppFooter />
+    <NotificationToast />
   </div>
 </template>
 

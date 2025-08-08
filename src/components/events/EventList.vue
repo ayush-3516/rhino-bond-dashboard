@@ -113,6 +113,24 @@ function getTimeRemaining(dateString) {
 function isPastEvent(event) {
   return new Date(event.end_date) <= new Date()
 }
+
+function handleImageError(event) {
+  // Hide the image container if the image fails to load
+  const imageContainer = event.target.parentElement
+  const placeholder = imageContainer.parentElement.querySelector('.event-image-placeholder')
+  if (placeholder) {
+    imageContainer.style.display = 'none'
+    placeholder.style.display = 'flex'
+  }
+}
+
+function handleImageLoad(event) {
+  // Hide loading spinner when image loads
+  const loadingSpinner = event.target.parentElement.querySelector('.image-loading')
+  if (loadingSpinner) {
+    loadingSpinner.style.display = 'none'
+  }
+}
 </script>
 
 <template>
@@ -245,6 +263,28 @@ function isPastEvent(event) {
               <div class="day">{{ new Date(event.start_date).getDate() }}</div>
               <div class="year">{{ new Date(event.start_date).getFullYear() }}</div>
             </div>
+          </div>
+
+          <div v-if="event.image_url" class="event-image">
+            <img 
+              :src="event.image_url" 
+              :alt="event.title"
+              class="event-image-img"
+              @error="handleImageError"
+              @load="handleImageLoad"
+              loading="lazy"
+            />
+            <div class="image-loading">
+              <div class="loading-spinner"></div>
+            </div>
+          </div>
+
+          <div v-if="!event.image_url" class="event-image-placeholder">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+              <circle cx="9" cy="9" r="2"></circle>
+              <path d="M21 15l-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path>
+            </svg>
           </div>
           
           <div class="event-content">
@@ -411,7 +451,7 @@ function isPastEvent(event) {
   overflow: hidden;
   transition: all 0.3s ease;
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto auto 1fr auto;
   align-items: start;
   gap: var(--space-lg);
   padding: var(--space-lg);
@@ -460,6 +500,69 @@ function isPastEvent(event) {
   font-size: 0.85rem;
   color: var(--color-text-secondary);
   font-weight: 500;
+}
+
+.event-image {
+  width: 120px;
+  height: 80px;
+  border-radius: var(--border-radius);
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  background: linear-gradient(135deg, #f0f0f0, #e0e0e0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.event-image-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.image-loading {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.3s ease;
+}
+
+.loading-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #e0e0e0;
+  border-top: 2px solid var(--color-primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.event-card:hover .event-image-img {
+  transform: scale(1.05);
+}
+
+.event-image-placeholder {
+  width: 120px;
+  height: 80px;
+  border-radius: var(--border-radius);
+  background: linear-gradient(135deg, #f8faff, #e2e8f0);
+  border: 2px dashed rgba(15, 23, 42, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-secondary);
 }
 
 .event-content {
@@ -644,6 +747,26 @@ function isPastEvent(event) {
   .event-card {
     grid-template-columns: 1fr;
     gap: var(--space-md);
+  }
+
+  .event-image {
+    width: 100%;
+    height: 120px;
+    grid-row: 2;
+  }
+
+  .event-image-placeholder {
+    width: 100%;
+    height: 120px;
+    grid-row: 2;
+  }
+
+  .event-date-badge {
+    grid-row: 1;
+  }
+
+  .event-content {
+    grid-row: 3;
   }
 
   .event-details {

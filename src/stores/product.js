@@ -33,8 +33,10 @@ export const useProductStore = defineStore('product', {
         
         if (error) throw error
         this.products.unshift(data[0])
+        this.error = null
       } catch (error) {
         this.error = error
+        throw error
       }
     },
     async updateProduct(id, updates) {
@@ -50,8 +52,10 @@ export const useProductStore = defineStore('product', {
         if (index !== -1) {
           this.products.splice(index, 1, data[0])
         }
+        this.error = null
       } catch (error) {
         this.error = error
+        throw error
       }
     },
     async deleteProduct(id) {
@@ -63,8 +67,10 @@ export const useProductStore = defineStore('product', {
         
         if (error) throw error
         this.products = this.products.filter(p => p.id !== id)
+        this.error = null
       } catch (error) {
         this.error = error
+        throw error
       }
     }
   }
