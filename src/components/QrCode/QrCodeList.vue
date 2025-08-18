@@ -84,21 +84,103 @@ const shortenId = (id) => {
 
 const copyToClipboard = async (text) => {
   try {
-    await navigator.clipboard.writeText(text)
-    alert('ID copied to clipboard')
+    // Try modern clipboard API first
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text)
+      showToast('ID copied to clipboard', 'success')
+    } else {
+      // Fallback method for older browsers or non-HTTPS
+      fallbackCopyToClipboard(text, 'ID')
+    }
   } catch (err) {
-    console.error('Failed to copy: ', err)
+    console.error('Failed to copy with clipboard API: ', err)
+    // Fallback method
+    fallbackCopyToClipboard(text, 'ID')
+  }
+}
+
+// Fallback copy method using document.execCommand
+const fallbackCopyToClipboard = (text, type = 'Text') => {
+  try {
+    // Create a temporary textarea element
+    const textArea = document.createElement('textarea')
+    textArea.value = text
+    
+    // Make it invisible
+    textArea.style.position = 'fixed'
+    textArea.style.left = '-999999px'
+    textArea.style.top = '-999999px'
+    textArea.style.opacity = '0'
+    textArea.style.pointerEvents = 'none'
+    textArea.style.zIndex = '-1'
+    
+    document.body.appendChild(textArea)
+    
+    // Select and copy the text
+    textArea.focus()
+    textArea.select()
+    
+    const successful = document.execCommand('copy')
+    
+    // Clean up
+    document.body.removeChild(textArea)
+    
+    if (successful) {
+      showToast(`${type} copied to clipboard`, 'success')
+    } else {
+      showToast('Copy failed. Please select and copy manually.', 'error')
+    }
+  } catch (err) {
+    console.error('Fallback copy failed: ', err)
+    showToast('Copy failed. Please select and copy manually.', 'error')
   }
 }
 
 const copyAllIds = async () => {
   try {
     const allIds = props.codes.map(code => code.id).join('\n')
-    await navigator.clipboard.writeText(allIds)
-    alert('All IDs copied to clipboard')
+    
+    // Try modern clipboard API first
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(allIds)
+      showToast('All IDs copied to clipboard', 'success')
+    } else {
+      // Fallback method for older browsers or non-HTTPS
+      fallbackCopyToClipboard(allIds, 'All IDs')
+    }
   } catch (err) {
-    console.error('Failed to copy all IDs: ', err)
+    console.error('Failed to copy all IDs with clipboard API: ', err)
+    // Fallback method
+    const allIds = props.codes.map(code => code.id).join('\n')
+    fallbackCopyToClipboard(allIds, 'All IDs')
   }
+}
+
+// Simple toast notification function
+const showToast = (message, type = 'info') => {
+  const toast = document.createElement('div')
+  toast.className = `toast-message ${type}`
+  toast.innerHTML = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      ${type === 'success' ? '<polyline points="20 6 9 17 4 12"></polyline>' : 
+        type === 'error' ? '<circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line>' :
+        '<circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12.01" y2="16"></line><line x1="12" y1="8" x2="12" y2="12"></line>'}
+    </svg>
+    <span>${message}</span>
+  `
+  document.body.appendChild(toast)
+  
+  setTimeout(() => {
+    toast.classList.add('show')
+    setTimeout(() => {
+      toast.classList.remove('show')
+      setTimeout(() => {
+        if (document.body.contains(toast)) {
+          document.body.removeChild(toast)
+        }
+      }, 300)
+    }, 2000)
+  }, 100)
 }
 
 const downloadAllQrCodes = async () => {
@@ -365,6 +447,60 @@ onBeforeUnmount(() => {
   text-align: center;
   font-family: monospace;
   word-break: break-all;
+}
+
+/* Toast Message Styles */
+.toast-message {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  border-radius: 12px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: white;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  min-width: 300px;
+  max-width: 400px;
+  transform: translateX(100%);
+  opacity: 0;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+}
+
+.toast-message.show {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+.toast-message.success {
+  background: linear-gradient(135deg, #10b981, #059669);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.toast-message.error {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.toast-message.info {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.toast-message svg {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+}
+
+.toast-message span {
+  flex: 1;
+  line-height: 1.4;
 }
 
 @media (max-width: 768px) {

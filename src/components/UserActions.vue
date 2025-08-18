@@ -250,11 +250,55 @@ async function handleAssignCode() {
 
 async function copyToClipboard(text, type = 'Text') {
   try {
-    await navigator.clipboard.writeText(text)
-    showToast(`${type} copied to clipboard`, 'success')
+    // Try modern clipboard API first
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text)
+      showToast(`${type} copied to clipboard`, 'success')
+    } else {
+      // Fallback method for older browsers or non-HTTPS
+      fallbackCopyToClipboard(text, type)
+    }
   } catch (err) {
-    console.error('Failed to copy: ', err)
-    showToast('Failed to copy to clipboard', 'error')
+    console.error('Failed to copy with clipboard API: ', err)
+    // Fallback method
+    fallbackCopyToClipboard(text, type)
+  }
+}
+
+// Fallback copy method using document.execCommand
+function fallbackCopyToClipboard(text, type = 'Text') {
+  try {
+    // Create a temporary textarea element
+    const textArea = document.createElement('textarea')
+    textArea.value = text
+    
+    // Make it invisible
+    textArea.style.position = 'fixed'
+    textArea.style.left = '-999999px'
+    textArea.style.top = '-999999px'
+    textArea.style.opacity = '0'
+    textArea.style.pointerEvents = 'none'
+    textArea.style.zIndex = '-1'
+    
+    document.body.appendChild(textArea)
+    
+    // Select and copy the text
+    textArea.focus()
+    textArea.select()
+    
+    const successful = document.execCommand('copy')
+    
+    // Clean up
+    document.body.removeChild(textArea)
+    
+    if (successful) {
+      showToast(`${type} copied to clipboard`, 'success')
+    } else {
+      showToast('Copy failed. Please select and copy manually.', 'error')
+    }
+  } catch (err) {
+    console.error('Fallback copy failed: ', err)
+    showToast('Copy failed. Please select and copy manually.', 'error')
   }
 }
 
@@ -418,5 +462,59 @@ function confirmDelete() {
 
 .menu-item.delete-item {
   color: #f44336;
+}
+
+/* Toast Message Styles */
+.toast-message {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  border-radius: 12px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: white;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  min-width: 300px;
+  max-width: 400px;
+  transform: translateX(100%);
+  opacity: 0;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+}
+
+.toast-message.show {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+.toast-message.success {
+  background: linear-gradient(135deg, #10b981, #059669);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.toast-message.error {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.toast-message.info {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.toast-message svg {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+}
+
+.toast-message span {
+  flex: 1;
+  line-height: 1.4;
 }
 </style>

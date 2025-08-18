@@ -37,32 +37,115 @@ watchEffect(() => {
   console.log('Updated loading from props:', loading.value)
 })
 
-// Function to copy text to clipboard
+// Function to copy text to clipboard with fallback
 async function copyToClipboard(text, userId, type = 'User ID') {
   try {
-    await navigator.clipboard.writeText(text)
-    copySuccess.value = userId
-    
-    // Show toast notification
-    const message = document.createElement('div');
-    message.className = 'toast-message info';
-    message.textContent = `${type} copied to clipboard`;
-    document.body.appendChild(message);
-    
-    setTimeout(() => {
-      message.classList.add('show');
-      setTimeout(() => {
-        message.classList.remove('show');
-        setTimeout(() => {
-          document.body.removeChild(message);
-          copySuccess.value = null;
-        }, 300);
-      }, 2000);
-    }, 100);
+    // Try modern clipboard API first
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text)
+      showCopySuccess(userId, type)
+    } else {
+      // Fallback method for older browsers or non-HTTPS
+      fallbackCopyToClipboard(text, userId, type)
+    }
   } catch (err) {
-    console.error('Failed to copy: ', err);
-    alert('Failed to copy to clipboard. Your browser may not support this feature.');
+    console.error('Failed to copy with clipboard API: ', err)
+    // Fallback method
+    fallbackCopyToClipboard(text, userId, type)
   }
+}
+
+// Fallback copy method using document.execCommand
+function fallbackCopyToClipboard(text, userId, type = 'User ID') {
+  try {
+    // Create a temporary textarea element
+    const textArea = document.createElement('textarea')
+    textArea.value = text
+    
+    // Make it invisible
+    textArea.style.position = 'fixed'
+    textArea.style.left = '-999999px'
+    textArea.style.top = '-999999px'
+    textArea.style.opacity = '0'
+    textArea.style.pointerEvents = 'none'
+    textArea.style.zIndex = '-1'
+    
+    document.body.appendChild(textArea)
+    
+    // Select and copy the text
+    textArea.focus()
+    textArea.select()
+    
+    const successful = document.execCommand('copy')
+    
+    // Clean up
+    document.body.removeChild(textArea)
+    
+    if (successful) {
+      showCopySuccess(userId, type)
+    } else {
+      showCopyError('Copy failed. Please select and copy manually.')
+    }
+  } catch (err) {
+    console.error('Fallback copy failed: ', err)
+    showCopyError('Copy failed. Please select and copy manually.')
+  }
+}
+
+// Show copy success notification
+function showCopySuccess(userId, type) {
+  copySuccess.value = userId
+  
+  // Show toast notification
+  const message = document.createElement('div')
+  message.className = 'toast-message success'
+  message.innerHTML = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="20 6 9 17 4 12"></polyline>
+    </svg>
+    <span>${type} copied to clipboard!</span>
+  `
+  document.body.appendChild(message)
+  
+  setTimeout(() => {
+    message.classList.add('show')
+    setTimeout(() => {
+      message.classList.remove('show')
+      setTimeout(() => {
+        if (document.body.contains(message)) {
+          document.body.removeChild(message)
+        }
+        copySuccess.value = null
+      }, 300)
+    }, 2000)
+  }, 100)
+}
+
+// Show copy error notification
+function showCopyError(errorMessage) {
+  const message = document.createElement('div')
+  message.className = 'toast-message error'
+  message.innerHTML = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"></circle>
+      <line x1="15" y1="9" x2="9" y2="15"></line>
+      <line x1="9" y1="9" x2="15" y2="15"></line>
+    </svg>
+    <span>${errorMessage}</span>
+  `
+  document.body.appendChild(message)
+  
+  setTimeout(() => {
+    message.classList.add('show')
+    setTimeout(() => {
+      message.classList.remove('show')
+      setTimeout(() => {
+        if (document.body.contains(message)) {
+          document.body.removeChild(message)
+        }
+      }, 300)
+    }, 3000)
+  }, 100)
 }
 
 async function fetchUsers() {
