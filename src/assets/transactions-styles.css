@@ -5,6 +5,59 @@
   --stats-transition: all 0.2s ease;
 }
 
+/* Hide any large decorative elements that might be appearing */
+.transactions-view::before,
+.transactions-view::after,
+.search-container::before,
+.search-container::after,
+.transactions-count::before,
+.transactions-count::after,
+.error-container::before,
+.error-container::after {
+  display: none !important;
+}
+
+/* Hide any large decorative elements in the main content area */
+.main-content::before,
+.main-content::after,
+.page-container::before,
+.page-container::after {
+  display: none !important;
+}
+
+/* Hide any large decorative elements that might be appearing globally */
+*::before,
+*::after {
+  max-width: 100% !important;
+  max-height: 100% !important;
+}
+
+/* Hide any large circular or semi-circular objects */
+[class*="circle"],
+[class*="circular"],
+[class*="semi"],
+[class*="arc"],
+[class*="ring"] {
+  display: none !important;
+}
+
+/* Hide any elements with large border-radius that might create circular shapes */
+[style*="border-radius: 50%"],
+[style*="border-radius: 50px"],
+[style*="border-radius: 100px"],
+[style*="border-radius: 200px"] {
+  display: none !important;
+}
+
+/* Hide any large decorative elements with specific dimensions */
+[style*="width: 100vw"],
+[style*="height: 100vh"],
+[style*="width: 100%"],
+[style*="height: 100%"] {
+  max-width: 100% !important;
+  max-height: 100% !important;
+}
+
 /* Page Layout */
 .transactions-view {
   padding: var(--space-md);

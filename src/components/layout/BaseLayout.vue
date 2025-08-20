@@ -102,17 +102,42 @@ onUnmounted(() => {
 }
 
 /* Add subtle grain texture to background */
-.app-layout::after {
-  content: "";
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
-  pointer-events: none;
-  z-index: 0;
-  opacity: 0.3;
+/* Removed the large decorative background element that was causing UI issues */
+
+/* Hide any large decorative elements that might be appearing */
+.app-layout::before,
+.app-layout::after,
+.main-content::before,
+.main-content::after,
+.page-container::before,
+.page-container::after {
+  display: none !important;
+}
+
+/* Hide any large circular or semi-circular objects */
+[class*="circle"],
+[class*="circular"],
+[class*="semi"],
+[class*="arc"],
+[class*="ring"] {
+  display: none !important;
+}
+
+/* Hide any elements with large border-radius that might create circular shapes */
+[style*="border-radius: 50%"],
+[style*="border-radius: 50px"],
+[style*="border-radius: 100px"],
+[style*="border-radius: 200px"] {
+  display: none !important;
+}
+
+/* Hide any large decorative elements with specific dimensions */
+[style*="width: 100vw"],
+[style*="height: 100vh"],
+[style*="width: 100%"],
+[style*="height: 100%"] {
+  max-width: 100% !important;
+  max-height: 100% !important;
 }
 
 /* Scroll to top button */

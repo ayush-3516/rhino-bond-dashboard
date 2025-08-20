@@ -53,13 +53,76 @@ async function confirmDelete() {
   }
 }
 
+// Event status helper functions
+function parseDate(dateString) {
+  if (!dateString) return null
+  const date = new Date(dateString)
+  if (isNaN(date.getTime())) {
+    console.error('Invalid date string:', dateString)
+    return null
+  }
+  return date
+}
+
+function isPastEvent(event) {
+  const now = new Date()
+  const endDate = parseDate(event.end_date)
+  if (!endDate) return false
+  return endDate <= now
+}
+
+function isUpcomingEvent(event) {
+  const now = new Date()
+  const startDate = parseDate(event.start_date)
+  if (!startDate) return false
+  return startDate > now
+}
+
+function isOngoingEvent(event) {
+  const now = new Date()
+  const startDate = parseDate(event.start_date)
+  const endDate = parseDate(event.end_date)
+  if (!startDate || !endDate) return false
+  return now >= startDate && now <= endDate
+}
+
+function getEventStatus(event) {
+  if (isOngoingEvent(event)) {
+    return 'ongoing'
+  } else if (isPastEvent(event)) {
+    return 'past'
+  } else if (isUpcomingEvent(event)) {
+    return 'upcoming'
+  } else {
+    return 'unknown'
+  }
+}
+
+function getEventStatusText(event) {
+  const status = getEventStatus(event)
+  switch (status) {
+    case 'past':
+      return 'Past'
+    case 'ongoing':
+      return 'Ongoing'
+    case 'upcoming':
+      return 'Upcoming'
+    default:
+      return 'Unknown'
+  }
+}
+
 const upcomingEvents = computed(() => 
-  events.value.filter(event => new Date(event.end_date) > new Date())
+  events.value.filter(event => isUpcomingEvent(event))
+)
+
+const ongoingEvents = computed(() =>
+  events.value.filter(event => isOngoingEvent(event))
 )
 
 const pastEvents = computed(() =>
   events.value
-    .filter(event => new Date(event.end_date) <= new Date())
+    .filter(event => isPastEvent(event))
     .sort((a, b) => new Date(b.end_date) - new Date(a.end_date))
 )
 
@@ -67,11 +130,13 @@ const filteredEvents = computed(() => {
   switch (filterActive.value) {
     case 'upcoming':
       return upcomingEvents.value
+    case 'ongoing':
+      return ongoingEvents.value
     case 'past':
       return pastEvents.value
     case 'all':
     default:
-      return [...upcomingEvents.value, ...pastEvents.value]
+      return [...upcomingEvents.value, ...ongoingEvents.value, ...pastEvents.value]
   }
 })
 
@@ -110,9 +175,7 @@ function getTimeRemaining(dateString) {
   return `${diffMins} min${diffMins > 1 ? 's' : ''}`
 }
 
-function isPastEvent(event) {
-  return new Date(event.end_date) <= new Date()
-}
+// This function is now defined above with the other helper functions
 
 function handleImageError(event) {
   // Hide the image container if the image fails to load
@@ -162,6 +225,17 @@ function handleImageLoad(event) {
             </svg>
             <span>Upcoming</span>
             <span v-if="upcomingEvents.length > 0" class="badge">{{ upcomingEvents.length }}</span>
+          </button>
+          <button 
+            :class="['btn-tab', { active: filterActive === 'ongoing' }]" 
+            @click="filterActive = 'ongoing'"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+            <span>Ongoing</span>
+            <span v-if="ongoingEvents.length > 0" class="badge">{{ ongoingEvents.length }}</span>
           </button>
           <button 
             :class="['btn-tab', { active: filterActive === 'past' }]" 
@@ -244,7 +318,11 @@ function handleImageLoad(event) {
           v-for="event in filteredEvents" 
           :key="event.id" 
           class="event-card"
-          :class="{ 'past-event': isPastEvent(event), 'selected': selectedEvents.has(event.id) }"
+          :class="{ 
+            'past-event': getEventStatus(event) === 'past', 
+            'ongoing-event': getEventStatus(event) === 'ongoing',
+            'selected': selectedEvents.has(event.id) 
+          }"
         >
           <div class="event-select">
             <input 
@@ -290,8 +368,8 @@ function handleImageLoad(event) {
           <div class="event-content">
             <div class="event-header">
               <h3 class="event-title">{{ event.title }}</h3>
-              <div class="event-status" :class="{ 'past': isPastEvent(event) }">
-                {{ isPastEvent(event) ? 'Past' : 'Upcoming' }}
+              <div class="event-status" :class="getEventStatus(event)">
+                {{ getEventStatusText(event) }}
               </div>
             </div>
             
@@ -322,7 +400,7 @@ function handleImageLoad(event) {
                 </div>
               </div>
               
-              <div v-if="!isPastEvent(event)" class="time-remaining">
+              <div v-if="getEventStatus(event) === 'upcoming'" class="time-remaining upcoming">
                 <svg class="time-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M10 2h4"></path>
                   <path d="M12 14v-4"></path>
@@ -330,6 +408,13 @@ function handleImageLoad(event) {
                   <path d="M9 17H4v5"></path>
                 </svg>
                 <span>{{ getTimeRemaining(event.end_date) }} remaining</span>
+              </div>
+              <div v-if="getEventStatus(event) === 'ongoing'" class="time-remaining ongoing">
+                <svg class="time-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+                <span>Event in progress</span>
               </div>
             </div>
             
@@ -462,6 +547,14 @@ function handleImageLoad(event) {
   box-shadow: var(--shadow-lg);
   border-color: rgba(15, 23, 42, 0.12);
   background: linear-gradient(to right, #ffffff, #f8faff);
+}
+
+.event-card.ongoing-event {
+  border-left: 4px solid #3b82f6;
+}
+
+.event-card.past-event {
+  opacity: 0.8;
 }
 
 .event-date-badge {
@@ -598,6 +691,16 @@ function handleImageLoad(event) {
   color: var(--color-text-secondary, #64748b);
 }
 
+.event-status.ongoing {
+  background: rgba(59, 130, 246, 0.12);
+  color: #3b82f6;
+}
+
+.event-status.upcoming {
+  background: rgba(0, 220, 130, 0.12);
+  color: var(--color-primary, #10b981);
+}
+
 .event-details {
   display: flex;
   gap: var(--space-xl);
@@ -639,11 +742,19 @@ function handleImageLoad(event) {
   align-items: center;
   gap: var(--space-xs);
   padding: 4px 12px;
-  background: rgba(0, 220, 130, 0.1);
   border-radius: 20px;
-  color: var(--color-primary);
   font-size: 0.8rem;
   font-weight: 500;
+}
+
+.time-remaining.upcoming {
+  background: rgba(0, 220, 130, 0.1);
+  color: var(--color-primary);
+}
+
+.time-remaining.ongoing {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
 }
 
 .event-actions {

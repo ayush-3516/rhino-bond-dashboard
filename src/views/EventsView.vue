@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref, computed } from 'vue'
+import { onMounted, ref, computed, watch } from 'vue'
 import EventForm from '@/components/events/EventForm.vue'
 import EventList from '@/components/events/EventList.vue'
 import EventListOptimized from '@/components/events/EventListOptimized.vue'
@@ -29,6 +29,11 @@ onMounted(async () => {
   await fetchEvents()
 })
 
+// Watch for events changes to update stats
+watch(events, (newEvents) => {
+  // Trigger any necessary updates when events change
+}, { deep: true })
+
 function toggleForm() {
   showForm.value = !showForm.value
 }
@@ -50,105 +55,191 @@ function handleEditEvent(event) {
   // Handle edit event
   console.log('Edit event:', event)
 }
+
+// Enhanced stats computation
+const upcomingEventsCount = computed(() => 
+  events.value.filter(e => new Date(e.start_date) > new Date()).length
+)
+
+const ongoingEventsCount = computed(() => {
+  const now = new Date()
+  return events.value.filter(e => {
+    const startDate = new Date(e.start_date)
+    const endDate = new Date(e.end_date)
+    return now >= startDate && now <= endDate
+  }).length
+})
+
+const pastEventsCount = computed(() => 
+  events.value.filter(e => new Date(e.end_date) <= new Date()).length
+)
+
+const totalEventsCount = computed(() => events.value.length)
 </script>
 
 <template>
   <div class="events-view">
+    <!-- Enhanced Header Section -->
     <header class="events-header">
-      <div class="header-pattern"></div>
+      <div class="header-background">
+        <div class="header-pattern"></div>
+        <div class="header-glow"></div>
+        <div class="header-particles"></div>
+      </div>
+      
       <div class="header-content">
-        <div class="header-title">
-          <h1>Event Management</h1>
-          <p class="header-subtitle">Create and manage events for your conservation initiatives</p>
+        <div class="header-left">
+          <div class="header-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="16" y1="2" x2="16" y2="6"></line>
+              <line x1="8" y1="2" x2="8" y2="6"></line>
+              <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+          </div>
+          <div class="header-text">
+            <h1>Event Management</h1>
+            <p class="header-subtitle">Create and manage events for your conservation initiatives</p>
+            <div class="header-stats">
+              <span class="stat-item" :class="{ 'highlight': totalEventsCount > 0 }">
+                <span class="stat-number">{{ totalEventsCount }}</span>
+                <span class="stat-label">Total Events</span>
+              </span>
+              <span class="stat-item" :class="{ 'highlight': upcomingEventsCount > 0 }">
+                <span class="stat-number">{{ upcomingEventsCount }}</span>
+                <span class="stat-label">Upcoming</span>
+              </span>
+              <span class="stat-item" :class="{ 'highlight': ongoingEventsCount > 0 }">
+                <span class="stat-number">{{ ongoingEventsCount }}</span>
+                <span class="stat-label">Ongoing</span>
+              </span>
+              <span class="stat-item" :class="{ 'highlight': pastEventsCount > 0 }">
+                <span class="stat-number">{{ pastEventsCount }}</span>
+                <span class="stat-label">Past</span>
+              </span>
+            </div>
+          </div>
         </div>
+        
         <div class="header-actions">
           <button 
-            class="btn btn-secondary" 
+            class="action-btn btn-secondary" 
             @click="togglePerformanceMonitor"
+            :class="{ 'active': showPerformanceMonitor }"
             title="Toggle Performance Monitor"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M3 3v5h5"></path>
               <path d="M21 21v-5h-5"></path>
               <path d="M21 7.5a9.5 9.5 0 1 0-6.5 9.3"></path>
             </svg>
-            {{ showPerformanceMonitor ? 'Hide' : 'Performance' }}
+            <span>{{ showPerformanceMonitor ? 'Hide Monitor' : 'Performance' }}</span>
           </button>
+          
           <button 
-            class="btn btn-secondary" 
+            class="action-btn btn-secondary" 
             @click="toggleOptimizedList"
+            :class="{ 'active': useOptimizedList }"
             title="Toggle Optimized List"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M16 3l4 4-4 4"></path>
               <path d="M21 7H9"></path>
               <path d="M8 17l-4-4 4-4"></path>
               <path d="M3 13h12"></path>
             </svg>
-            {{ useOptimizedList ? 'Standard' : 'Optimized' }}
+            <span>{{ useOptimizedList ? 'Standard' : 'Optimized' }}</span>
           </button>
-          <button class="btn btn-primary toggle-form-btn" @click="toggleForm">
-            <span>{{ showForm ? 'Hide Form' : 'Create New Event' }}</span>
-            <svg v-if="!showForm" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          
+          <button class="action-btn btn-primary create-event-btn" @click="toggleForm">
+            <svg v-if="!showForm" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <line x1="12" y1="5" x2="12" y2="19"></line>
               <line x1="5" y1="12" x2="19" y2="12"></line>
             </svg>
-            <svg v-else xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <svg v-else xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="12"></line>
             </svg>
+            <span>{{ showForm ? 'Hide Form' : 'Create Event' }}</span>
           </button>
         </div>
       </div>
-      <div class="header-accent"></div>
     </header>
 
     <div class="content">
-      <!-- Performance Monitor (optional) -->
+      <!-- Performance Monitor Section -->
       <transition name="slide-fade">
-        <EventPerformanceMonitor v-if="showPerformanceMonitor" />
+        <div v-if="showPerformanceMonitor" class="monitor-section">
+          <EventPerformanceMonitor />
+        </div>
       </transition>
       
+      <!-- Event Form Section -->
       <transition name="slide-fade">
         <div v-if="showForm" class="form-section">
-          <div class="card card-form">
-            <div class="card-header">
-              <h2>Create New Event</h2>
-              <button class="btn-close" @click="showForm = false">
+          <div class="form-card">
+            <div class="form-card-header">
+              <div class="form-header-content">
+                <div class="form-header-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                  </svg>
+                </div>
+                <div>
+                  <h2>Create New Event</h2>
+                  <p>Fill in the details below to create a new event</p>
+                </div>
+              </div>
+              <button class="close-btn" @click="showForm = false">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <line x1="18" y1="6" x2="6" y2="18"></line>
-                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="12"></line>
                 </svg>
               </button>
             </div>
-            <div class="card-body">
+            <div class="form-card-body">
               <EventForm @event-created="eventStore.fetchEvents(); showForm = false" />
             </div>
           </div>
         </div>
       </transition>
       
+      <!-- Events List Section -->
       <div class="list-section">
-        <div class="card card-accent">
-          <div class="card-header">
-            <h2>Events</h2>
-            <div class="card-actions">
-              <span 
-                v-if="useOptimizedList" 
-                class="optimization-badge"
-                title="Using optimized list component"
-              >
-                ⚡ Optimized
-              </span>
-              <button class="btn btn-secondary btn-sm" @click="eventStore.fetchEvents()">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <div class="list-card">
+          <div class="list-card-header">
+            <div class="list-header-content">
+              <div class="list-header-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                  <line x1="16" y1="2" x2="16" y2="6"></line>
+                  <line x1="8" y1="2" x2="8" y2="6"></line>
+                  <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+              </div>
+              <div>
+                <h2>Events</h2>
+                <p>Manage and organize your events</p>
+              </div>
+            </div>
+            
+            <div class="list-header-actions">
+              <div class="optimization-indicator" v-if="useOptimizedList">
+                <div class="indicator-dot"></div>
+                <span class="indicator-text">⚡ Optimized</span>
+              </div>
+              
+              <button class="refresh-btn" @click="eventStore.fetchEvents()" title="Refresh Events">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38"/>
                 </svg>
-                Refresh
+                <span>Refresh</span>
               </button>
             </div>
           </div>
-          <div class="card-body">
+          
+          <div class="list-card-body">
             <!-- Conditional rendering of optimized vs standard list -->
             <EventListOptimized 
               v-if="useOptimizedList"
@@ -170,35 +261,48 @@ function handleEditEvent(event) {
 
 <style scoped>
 .events-view {
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
   padding: var(--space-xl) var(--space-md);
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
 }
 
+/* Enhanced Header Styles */
 .events-header {
-  margin-bottom: var(--space-xl);
+  margin-bottom: var(--space-2xl);
   background: linear-gradient(135deg, 
     var(--color-primary) 0%, 
-    var(--color-primary-dark) 100%
+    var(--color-primary-dark) 50%,
+    #00a854 100%
   );
-  backdrop-filter: blur(10px);
-  border-radius: var(--border-radius-lg);
-  padding: var(--space-xl) var(--space-lg);
+  border-radius: 24px;
+  padding: var(--space-2xl) var(--space-xl);
   position: relative;
   overflow: hidden;
-  z-index: 1;
-  border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: 
-    0 10px 30px rgba(0, 220, 130, 0.15),
-    0 2px 4px rgba(0, 220, 130, 0.1),
+    0 20px 40px rgba(0, 220, 130, 0.15),
+    0 8px 16px rgba(0, 220, 130, 0.1),
     inset 0 1px rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .events-header:hover {
-  transform: translateY(-2px);
+  transform: translateY(-4px);
   box-shadow: 
-    0 15px 35px rgba(0, 220, 130, 0.25),
-    inset 0 1px rgba(255, 255, 255, 0.3);
+    0 25px 50px rgba(0, 220, 130, 0.2),
+    0 12px 24px rgba(0, 220, 130, 0.15),
+    inset 0 1px rgba(255, 255, 255, 0.25);
+}
+
+.header-background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
 }
 
 .header-pattern {
@@ -211,14 +315,69 @@ function handleEditEvent(event) {
     radial-gradient(circle at 20% 150%, rgba(255, 255, 255, 0.15) 0%, transparent 50%),
     radial-gradient(circle at 80% -50%, rgba(255, 255, 255, 0.2) 0%, transparent 50%),
     linear-gradient(45deg, transparent 0%, rgba(255, 255, 255, 0.05) 100%);
-  opacity: 0.6;
-  animation: patternShift 15s ease-in-out infinite alternate;
-  z-index: -1;
+  opacity: 0.7;
+  animation: patternShift 20s ease-in-out infinite alternate;
+}
+
+.header-glow {
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  right: -50%;
+  bottom: -50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+  animation: glowPulse 8s ease-in-out infinite;
+}
+
+.header-particles {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  opacity: 0.1;
+  pointer-events: none;
+}
+
+.header-particles::before,
+.header-particles::after {
+  content: '';
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 50%;
+  animation: float 6s ease-in-out infinite;
+}
+
+.header-particles::before {
+  top: 20%;
+  left: 10%;
+  animation-delay: 0s;
+}
+
+.header-particles::after {
+  top: 60%;
+  right: 15%;
+  animation-delay: 3s;
 }
 
 @keyframes patternShift {
-  0% { transform: translateX(-5%) translateY(-5%) scale(1.05); }
-  100% { transform: translateX(5%) translateY(5%) scale(0.95); }
+  0% { transform: translateX(-3%) translateY(-3%) scale(1.02); }
+  100% { transform: translateX(3%) translateY(3%) scale(0.98); }
+}
+
+@keyframes glowPulse {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.1); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px) translateX(0px); opacity: 0.6; }
+  25% { transform: translateY(-20px) translateX(10px); opacity: 1; }
+  50% { transform: translateY(-10px) translateX(-5px); opacity: 0.8; }
+  75% { transform: translateY(-15px) translateX(15px); opacity: 0.9; }
 }
 
 .header-content {
@@ -226,104 +385,230 @@ function handleEditEvent(event) {
   z-index: 2;
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  gap: var(--space-xl);
+}
+
+.header-left {
+  display: flex;
+  align-items: flex-start;
   gap: var(--space-lg);
+  flex: 1;
 }
 
-.header-actions {
+.header-icon {
   display: flex;
-  gap: var(--space-sm);
   align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 16px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  flex-shrink: 0;
+  transition: all 0.3s ease;
 }
 
-.header-title {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-xs);
-  position: relative;
-  z-index: 2;
+.header-icon:hover {
+  transform: scale(1.05) rotate(5deg);
+  background: rgba(255, 255, 255, 0.2);
 }
 
-h1 {
+.header-text h1 {
   color: #ffffff;
-  margin: 0;
-  font-size: var(--font-size-2xl);
-  font-weight: var(--font-weight-bold);
-  line-height: 1.2;
-  letter-spacing: -0.5px;
-  background: linear-gradient(to right, #ffffff, rgba(255, 255, 255, 0.9));
-  -webkit-background-clip: text;
-  background-clip: text;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+  margin: 0 0 var(--space-sm) 0;
+  font-size: 2.5rem;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .header-subtitle {
   color: rgba(255, 255, 255, 0.9);
-  margin: var(--space-xs) 0 0 0;
-  font-size: var(--font-size-md);
-  max-width: 500px;
-  line-height: 1.5;
+  margin: 0 0 var(--space-lg) 0;
+  font-size: 1.125rem;
+  line-height: 1.6;
   font-weight: 500;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  max-width: 500px;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
 }
 
-.toggle-form-btn {
+.header-stats {
+  display: flex;
+  gap: var(--space-lg);
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--space-sm) var(--space-md);
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  min-width: 80px;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.stat-item:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.stat-item.highlight {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.stat-number {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: white;
+  line-height: 1;
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.header-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  flex-shrink: 0;
+}
+
+.action-btn {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-xs);
-  padding: var(--space-sm) var(--space-xl);
-  background: rgba(255, 255, 255, 0.95);
-  color: var(--color-primary);
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-lg);
   border: none;
-  border-radius: 30px;
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-semibold);
+  border-radius: 12px;
+  font-size: 0.875rem;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 
-    0 2px 4px rgba(0, 0, 0, 0.1),
-    0 1px 2px rgba(0, 0, 0, 0.06);
+  text-decoration: none;
+  white-space: nowrap;
+  min-width: 140px;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
 }
 
-.toggle-form-btn:hover {
-  transform: translateY(-1px) scale(1.02);
+.action-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  transition: left 0.5s ease;
+}
+
+.action-btn:hover::before {
+  left: 100%;
+}
+
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+}
+
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+}
+
+.btn-secondary.active {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.4);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.btn-primary {
+  background: rgba(255, 255, 255, 0.95);
+  color: var(--color-primary-dark);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.btn-primary:hover {
   background: #ffffff;
-  box-shadow: 
-    0 4px 6px rgba(0, 0, 0, 0.12),
-    0 2px 4px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
 }
 
-.toggle-form-btn:active {
-  transform: translateY(0) scale(0.98);
+.create-event-btn {
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  font-weight: 700;
+  padding: var(--space-md) var(--space-xl);
 }
 
+.create-event-btn:hover {
+  background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateY(-2px) scale(1.02);
+}
+
+/* Content Sections */
 .content {
   display: flex;
   flex-direction: column;
   gap: var(--space-xl);
 }
 
-/* Card styles */
-.card {
-  background: linear-gradient(to bottom right, #ffffff, #fafbff);
-  border-radius: var(--border-radius-lg);
+.monitor-section {
+  animation: slideInFromTop 0.4s ease-out;
+}
+
+.form-section {
+  animation: slideInFromTop 0.4s ease-out;
+}
+
+/* Enhanced Card Styles */
+.form-card,
+.list-card {
+  background: #ffffff;
+  border-radius: 20px;
   box-shadow: 
-    0 1px 3px rgba(15, 23, 42, 0.08),
-    0 1px 2px rgba(15, 23, 42, 0.05);
+    0 4px 6px rgba(15, 23, 42, 0.05),
+    0 2px 4px rgba(15, 23, 42, 0.03),
+    0 0 0 1px rgba(15, 23, 42, 0.05);
   overflow: hidden;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   border: 1px solid rgba(15, 23, 42, 0.06);
   position: relative;
 }
 
-.card:hover {
+.form-card:hover,
+.list-card:hover {
   transform: translateY(-2px);
   box-shadow: 
-    0 4px 6px rgba(15, 23, 42, 0.08),
-    0 2px 4px rgba(15, 23, 42, 0.05);
+    0 8px 12px rgba(15, 23, 42, 0.08),
+    0 4px 8px rgba(15, 23, 42, 0.04),
+    0 0 0 1px rgba(15, 23, 42, 0.08);
 }
 
-.card::before {
+.form-card::before,
+.list-card::before {
   content: '';
   position: absolute;
   top: 0;
@@ -338,57 +623,72 @@ h1 {
   transition: opacity 0.3s ease;
 }
 
-.card:hover::before {
+.form-card:hover::before,
+.list-card:hover::before {
   opacity: 1;
 }
 
-.card-form {
-  background: linear-gradient(to bottom right, #ffffff, #f8faff);
-  border-top: 4px solid var(--color-primary);
-  box-shadow: 
-    0 4px 6px rgba(15, 23, 42, 0.08),
-    0 2px 4px rgba(15, 23, 42, 0.05);
-}
-
-.card-header {
+.form-card-header,
+.list-card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--space-lg) var(--space-xl);
+  padding: var(--space-xl) var(--space-xl) var(--space-lg) var(--space-xl);
   background: linear-gradient(to right, 
-    rgba(15, 23, 42, 0.03),
+    rgba(15, 23, 42, 0.02),
     rgba(15, 23, 42, 0.01)
   );
   border-bottom: 1px solid rgba(15, 23, 42, 0.06);
 }
 
-.card-header h2 {
-  color: var(--color-text);
-  font-size: var(--font-size-xl);
-  font-weight: var(--font-weight-bold);
-  background: linear-gradient(to right, 
-    var(--color-text),
-    var(--color-text-secondary)
-  );
-  -webkit-background-clip: text;
-  background-clip: text;
-}
-
-.card-body {
-  padding: var(--space-lg);
-}
-
-.card-actions {
+.form-header-content,
+.list-header-content {
   display: flex;
-  gap: var(--space-sm);
+  align-items: center;
+  gap: var(--space-md);
 }
 
-.btn-close {
+.form-header-icon,
+.list-header-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+  border-radius: 12px;
+  color: white;
+  transition: all 0.3s ease;
+}
+
+.form-header-icon:hover,
+.list-header-icon:hover {
+  transform: scale(1.05);
+}
+
+.form-card-header h2,
+.list-card-header h2 {
+  color: var(--color-text);
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0 0 var(--space-xs) 0;
+  line-height: 1.2;
+}
+
+.form-card-header p,
+.list-card-header p {
+  color: var(--color-text-secondary);
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.close-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   padding: 0;
   background: rgba(15, 23, 42, 0.05);
   border: none;
@@ -398,57 +698,117 @@ h1 {
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.btn-close:hover {
+.close-btn:hover {
   background: rgba(15, 23, 42, 0.1);
   color: var(--color-text);
   transform: rotate(90deg);
 }
 
-.btn-secondary {
+.form-card-body,
+.list-card-body {
+  padding: var(--space-xl);
+  background: #ffffff;
+}
+
+.list-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.optimization-indicator {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-sm);
+  background: rgba(0, 220, 130, 0.1);
+  color: var(--color-primary);
+  border: 1px solid rgba(0, 220, 130, 0.2);
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  animation: pulse 2s infinite;
+}
+
+.indicator-dot {
+  width: 8px;
+  height: 8px;
+  background: var(--color-primary);
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.2); }
+}
+
+.refresh-btn {
   display: inline-flex;
   align-items: center;
   gap: var(--space-xs);
   padding: var(--space-sm) var(--space-md);
-  background: rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: var(--border-radius);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
+  background: rgba(15, 23, 42, 0.05);
+  color: var(--color-text-secondary);
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
-  backdrop-filter: blur(8px);
 }
 
-.btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.3);
+.refresh-btn:hover {
+  background: rgba(15, 23, 42, 0.1);
+  border-color: rgba(15, 23, 42, 0.15);
+  color: var(--color-text);
   transform: translateY(-1px);
 }
 
-.optimization-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-xs);
-  padding: 4px 8px;
-  background: rgba(0, 220, 130, 0.1);
-  color: var(--color-primary);
-  border: 1px solid rgba(0, 220, 130, 0.2);
-  border-radius: 12px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  cursor: help;
+/* Enhanced Animations */
+@keyframes slideInFromTop {
+  from {
+    opacity: 0;
+    transform: translateY(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.slide-fade-enter-active {
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.slide-fade-leave-active {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.slide-fade-enter-from {
+  opacity: 0;
+  transform: translateY(-30px);
+}
+
+.slide-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-20px);
 }
 
 /* Responsive Design */
-@media (max-width: 1024px) {
+@media (max-width: 1200px) {
+  .events-view {
+    max-width: 100%;
+    padding: var(--space-lg) var(--space-md);
+  }
+  
   .header-content {
     flex-direction: column;
-    gap: var(--space-md);
-    text-align: center;
+    gap: var(--space-lg);
   }
   
   .header-actions {
+    flex-direction: row;
     flex-wrap: wrap;
     justify-content: center;
   }
@@ -460,134 +820,80 @@ h1 {
   }
   
   .events-header {
-    padding: var(--space-xl) var(--space-md);
+    padding: var(--space-xl) var(--space-lg);
+    border-radius: 16px;
   }
   
-  h1 {
-    font-size: var(--font-size-xl);
+  .header-left {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: var(--space-md);
+  }
+  
+  .header-icon {
+    width: 56px;
+    height: 56px;
+  }
+  
+  .header-text h1 {
+    font-size: 2rem;
   }
   
   .header-subtitle {
-    font-size: var(--font-size-sm);
+    font-size: 1rem;
+  }
+  
+  .header-stats {
+    justify-content: center;
   }
   
   .header-actions {
-    flex-direction: column;
-    width: 100%;
-  }
-  
-  .btn-secondary,
-  .toggle-form-btn {
     width: 100%;
     justify-content: center;
   }
   
-  .card-header {
+  .action-btn {
+    min-width: auto;
+    flex: 1;
+    justify-content: center;
+  }
+  
+  .form-card-header,
+  .list-card-header {
+    flex-direction: column;
+    gap: var(--space-md);
+    align-items: stretch;
+    text-align: center;
+  }
+  
+  .list-header-actions {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  
+  .form-card-body,
+  .list-card-body {
+    padding: var(--space-lg);
+  }
+}
+
+@media (max-width: 480px) {
+  .events-header {
+    padding: var(--space-lg) var(--space-md);
+  }
+  
+  .header-text h1 {
+    font-size: 1.75rem;
+  }
+  
+  .header-stats {
     flex-direction: column;
     gap: var(--space-sm);
-    align-items: stretch;
   }
   
-  .card-actions {
-    justify-content: flex-start;
-  }
-}
-
-/* Enhanced animations */
-@keyframes slideInFromTop {
-  from {
-    opacity: 0;
-    transform: translateY(-20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.slide-fade-enter-active {
-  transition: all 0.3s ease-out;
-}
-
-.slide-fade-leave-active {
-  transition: all 0.3s ease-in;
-}
-
-.slide-fade-enter-from {
-  opacity: 0;
-  transform: translateY(-20px);
-}
-
-.slide-fade-leave-to {
-  opacity: 0;
-  transform: translateY(-20px);
-}
-
-@media (prefers-color-scheme: dark) {
-  .card {
-    background: linear-gradient(to bottom right,
-      var(--color-surface-dark, #1f2937),
-      rgba(17, 24, 39, 0.95)
-    );
-    border-color: rgba(255, 255, 255, 0.05);
-    box-shadow: 
-      0 4px 6px rgba(0, 0, 0, 0.2),
-      0 2px 4px rgba(0, 0, 0, 0.1);
-  }
-  
-  .card-header {
-    background: linear-gradient(to right,
-      rgba(255, 255, 255, 0.06),
-      rgba(255, 255, 255, 0.02)
-    );
-    border-bottom-color: rgba(255, 255, 255, 0.08);
-  }
-  
-  .card-header h2 {
-    color: #ffffff;
-    background: linear-gradient(to right, 
-      rgba(255, 255, 255, 0.95),
-      rgba(255, 255, 255, 0.8)
-    );
-    -webkit-background-clip: text;
-    background-clip: text;
-  }
-
-  .toggle-form-btn {
-    background: var(--color-primary);
-    color: white;
-    box-shadow: 
-      0 2px 4px rgba(0, 0, 0, 0.2),
-      0 1px 2px rgba(0, 0, 0, 0.1);
-  }
-
-  .toggle-form-btn:hover {
-    background: var(--color-primary-dark);
-    box-shadow: 
-      0 4px 6px rgba(0, 0, 0, 0.25),
-      0 2px 4px rgba(0, 0, 0, 0.15);
-  }
-  
-  .btn-close {
-    background: rgba(255, 255, 255, 0.1);
-    color: rgba(255, 255, 255, 0.7);
-  }
-  
-  .btn-close:hover {
-    background: rgba(255, 255, 255, 0.15);
-    color: #ffffff;
-  }
-
-  .btn-secondary {
-    background: rgba(255, 255, 255, 0.05);
-    border-color: rgba(255, 255, 255, 0.1);
-    color: rgba(255, 255, 255, 0.7);
-  }
-
-  .btn-secondary:hover {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: rgba(255, 255, 255, 0.15);
-    color: #ffffff;
+  .action-btn {
+    width: 100%;
   }
 }
 </style>

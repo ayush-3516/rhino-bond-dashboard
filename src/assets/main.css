@@ -2,6 +2,28 @@
 @import './base.css';
 @import './enhanced.css';
 
+/* Global rules to hide any large decorative elements */
+[class*="circle"],
+[class*="circular"],
+[class*="semi"],
+[class*="arc"],
+[class*="ring"] {
+  display: none !important;
+}
+
+[style*="border-radius: 50%"],
+[style*="border-radius: 50px"],
+[style*="border-radius: 100px"],
+[style*="border-radius: 200px"] {
+  display: none !important;
+}
+
+[style*="width: 100vw"],
+[style*="height: 100vh"] {
+  max-width: 100% !important;
+  max-height: 100% !important;
+}
+
 /* App Layout */
 .app {
   min-height: 100vh;
