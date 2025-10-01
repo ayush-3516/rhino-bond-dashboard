@@ -55,7 +55,6 @@
 
 <script setup>
 import { ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
-import QRCode from 'qrcode'
 
 const props = defineProps({
   codes: {
@@ -198,6 +197,10 @@ const generateDisplayQRCodes = async () => {
     if (!props.codes || props.codes.length === 0) {
       return
     }
+
+    // Dynamic import of QRCode module
+    const QRCodeModule = await import('qrcode')
+    const QRCode = QRCodeModule.default
 
     await nextTick() // Wait for DOM updates
 

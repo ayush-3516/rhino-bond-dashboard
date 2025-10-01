@@ -70,7 +70,6 @@
 <script setup>
 import { ref } from 'vue'
 import { supabase, withServiceRole } from '../../supabase'
-import QRCode from 'qrcode'
 
 // UUID generation fallback
 const generateUUID = () => {
@@ -136,6 +135,10 @@ const generateQRCodes = async () => {
 
   try {
     loading.value = true
+
+    // Dynamic import of QRCode module
+    const QRCodeModule = await import('qrcode')
+    const QRCode = QRCodeModule.default
 
     const {
       data: { user },
