@@ -35,11 +35,10 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 ENV NGINX_WORKER_PROCESSES=1
 ENV NGINX_WORKER_CONNECTIONS=1024
 
-# Set proper permissions (nginx user already exists in alpine image)
+# Set proper permissions
 RUN chown -R nginx:nginx /usr/share/nginx/html
 
 EXPOSE 80
 
-# Use nginx user and optimized startup
-USER nginx
+# Run nginx as root (required for port binding)
 CMD ["nginx", "-g", "daemon off;"]
