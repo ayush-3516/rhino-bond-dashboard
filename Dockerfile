@@ -35,14 +35,8 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 ENV NGINX_WORKER_PROCESSES=1
 ENV NGINX_WORKER_CONNECTIONS=1024
 
-# Create nginx user for security
-RUN addgroup -g 1001 -S nginx && \
-    adduser -S -D -H -u 1001 -h /var/cache/nginx -s /sbin/nologin -G nginx -g nginx nginx
-
-# Set proper permissions
-RUN chown -R nginx:nginx /usr/share/nginx/html && \
-    chown -R nginx:nginx /var/cache/nginx && \
-    chown -R nginx:nginx /var/log/nginx
+# Set proper permissions (nginx user already exists in alpine image)
+RUN chown -R nginx:nginx /usr/share/nginx/html
 
 EXPOSE 80
 
