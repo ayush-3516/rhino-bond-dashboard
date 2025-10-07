@@ -1,53 +1,14 @@
 <template>
   <div class="user-management-optimized">
-    <!-- Performance Metrics (Development Only) -->
-    <div v-if="isDevelopment" class="performance-panel">
-      <h3>Performance Metrics</h3>
-      <div class="metrics-grid">
-        <div class="metric-item">
-          <span class="metric-label">Fetch Users:</span>
-          <span class="metric-value">{{ metrics.performance.fetchUsers.averageTime.toFixed(2) }}ms avg</span>
-        </div>
-        <div class="metric-item">
-          <span class="metric-label">Cache Hit Rate:</span>
-          <span class="metric-value">{{ metrics.cache.hitRate }}%</span>
-        </div>
-        <div class="metric-item">
-          <span class="metric-label">Total Users:</span>
-          <span class="metric-value">{{ totalUsers }}</span>
-        </div>
-        <div class="metric-item">
-          <span class="metric-label">Rendered Users:</span>
-          <span class="metric-value">{{ paginatedUsers.length }}</span>
-        </div>
-      </div>
-    </div>
+
 
     <!-- Search and Filter Controls -->
     <div class="controls-section">
-      <div class="search-container">
-        <svg xmlns="http://www.w3.org/2000/svg" class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="11" cy="11" r="8"></circle>
-          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-        </svg>
-        <input 
-          v-model="searchTerm" 
-          type="text"
-          placeholder="Search users by name, email, phone or ID..." 
-          class="search-input"
-          @input="debouncedSearch"
-        />
-        <button 
-          v-if="searchTerm" 
-          @click="clearSearch" 
-          class="clear-search-btn"
-          title="Clear search"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
-        </button>
+      <!-- Search is now handled by parent component -->
+      <div class="search-info">
+        <p>
+          🔍 Search is handled by the main search bar above. Current search: "{{ searchTerm || 'None' }}"
+        </p>
       </div>
 
       <div class="filter-controls">
@@ -210,7 +171,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, defineAsyncComponent } from 'vue'
+import { ref, computed, onMounted, watch, defineAsyncComponent } from 'vue'
 import { debounce } from 'lodash-es'
 import { supabase, withServiceRole } from '@/supabase'
 import { useUserPerformance } from '@/composables/useUserPerformance'
@@ -224,6 +185,10 @@ const props = defineProps({
   pageSize: {
     type: Number,
     default: 20
+  },
+  searchTerm: {
+    type: String,
+    default: ''
   }
 })
 
@@ -242,13 +207,20 @@ const { showToast } = useNotifications()
 // State
 const users = ref([])
 const loading = ref(false)
-const searchTerm = ref('')
+const searchTerm = ref(props.searchTerm || '')
 const roleFilter = ref('')
 const verificationFilter = ref('')
 const sortBy = ref('created_at')
 const currentPage = ref(0)
 const showDeleteModal = ref(false)
 const userToDelete = ref(null)
+
+// Enhanced search functionality
+const showSearchSuggestions = ref(false)
+const searchSuggestions = ref([])
+const selectedSuggestionIndex = ref(-1)
+const searchInput = ref(null)
+const searchHistory = ref(JSON.parse(localStorage.getItem('user-search-history') || '[]'))
 
 // Development mode check
 const isDevelopment = import.meta.env.DEV || 
@@ -345,6 +317,91 @@ const fetchUsers = measurePerformance('fetchUsers', async (useCache = true) => {
   }
 })
 
+// Enhanced search functionality
+function handleSearchInput() {
+  debouncedSearch()
+  generateSearchSuggestions()
+  showSearchSuggestions.value = true
+}
+
+function generateSearchSuggestions() {
+  if (!searchTerm.value.trim() || searchTerm.value.length < 2) {
+    searchSuggestions.value = []
+    return
+  }
+  
+  const term = searchTerm.value.toLowerCase()
+  const suggestions = users.value
+    .filter(user => 
+      user.name?.toLowerCase().includes(term) || 
+      user.email?.toLowerCase().includes(term) || 
+      user.phone?.toLowerCase().includes(term) ||
+      user.id.toLowerCase().includes(term)
+    )
+    .slice(0, 5) // Limit to 5 suggestions
+  
+  searchSuggestions.value = suggestions
+  selectedSuggestionIndex.value = -1
+}
+
+function highlightSearchTerm(text) {
+  if (!text || !searchTerm.value.trim()) return text
+  
+  const term = searchTerm.value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const regex = new RegExp(`(${term})`, 'gi')
+  return text.replace(regex, '<mark class="search-highlight">$1</mark>')
+}
+
+function selectSuggestion(suggestion) {
+  searchTerm.value = suggestion.name || suggestion.email || suggestion.id
+  showSearchSuggestions.value = false
+  addToSearchHistory(searchTerm.value)
+  debouncedSearch()
+}
+
+function selectFirstSuggestion() {
+  if (searchSuggestions.value.length > 0 && selectedSuggestionIndex.value >= 0) {
+    selectSuggestion(searchSuggestions.value[selectedSuggestionIndex.value])
+  } else if (searchSuggestions.value.length > 0) {
+    selectSuggestion(searchSuggestions.value[0])
+  }
+}
+
+function navigateSuggestions(direction) {
+  if (searchSuggestions.value.length === 0) return
+  
+  selectedSuggestionIndex.value += direction
+  
+  if (selectedSuggestionIndex.value < 0) {
+    selectedSuggestionIndex.value = searchSuggestions.value.length - 1
+  } else if (selectedSuggestionIndex.value >= searchSuggestions.value.length) {
+    selectedSuggestionIndex.value = 0
+  }
+}
+
+function hideSearchSuggestions() {
+  // Delay hiding to allow clicks on suggestions
+  setTimeout(() => {
+    showSearchSuggestions.value = false
+  }, 200)
+}
+
+function addToSearchHistory(term) {
+  if (!term.trim()) return
+  
+  // Remove if already exists
+  searchHistory.value = searchHistory.value.filter(item => item !== term)
+  
+  // Add to beginning
+  searchHistory.value.unshift(term)
+  
+  // Keep only last 10 searches
+  searchHistory.value = searchHistory.value.slice(0, 10)
+  
+  // Save to localStorage
+  localStorage.setItem('user-search-history', JSON.stringify(searchHistory.value))
+}
+
 const debouncedSearch = debounce(() => {
   currentPage.value = 0 // Reset to first page when searching
 }, 300)
@@ -359,6 +416,9 @@ const sortUsers = () => {
 
 const clearSearch = () => {
   searchTerm.value = ''
+  searchSuggestions.value = []
+  showSearchSuggestions.value = false
+  selectedSuggestionIndex.value = -1
   currentPage.value = 0
 }
 
@@ -475,6 +535,13 @@ const deleteUser = measurePerformance('deleteUser', async () => {
   }
 })
 
+// Watch for search term changes from parent
+watch(() => props.searchTerm, (newSearchTerm) => {
+  console.log('🔍 UserManagementOptimized received search term:', newSearchTerm)
+  searchTerm.value = newSearchTerm
+  handleSearchInput()
+}, { immediate: true })
+
 // Initialize
 onMounted(async () => {
   await fetchUsers()
@@ -533,6 +600,20 @@ onMounted(async () => {
   align-items: center;
 }
 
+.search-info {
+  background: #e8f4fd;
+  padding: 10px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  width: 100%;
+}
+
+.search-info p {
+  margin: 0;
+  color: #0066cc;
+  font-size: 14px;
+}
+
 .search-container {
   position: relative;
   flex: 1;
@@ -587,6 +668,85 @@ onMounted(async () => {
 .clear-search-btn:hover {
   background-color: #f3f4f6;
   color: #6b7280;
+}
+
+/* Search Suggestions */
+.search-suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-top: none;
+  border-radius: 0 0 12px 12px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  z-index: 50;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.suggestion-item {
+  padding: 12px 16px;
+  cursor: pointer;
+  border-bottom: 1px solid #f3f4f6;
+  transition: background-color 0.2s ease;
+}
+
+.suggestion-item:last-child {
+  border-bottom: none;
+}
+
+.suggestion-item:hover,
+.suggestion-item.active {
+  background-color: #f8fafc;
+}
+
+.suggestion-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.suggestion-name {
+  font-weight: 500;
+  color: var(--color-text);
+  font-size: 0.95rem;
+}
+
+.suggestion-details {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+}
+
+.suggestion-email {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-right: 8px;
+}
+
+.suggestion-role {
+  padding: 2px 6px;
+  background-color: #f1f5f9;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  font-weight: 500;
+  color: #64748b;
+}
+
+/* Search Highlight */
+.search-highlight {
+  background-color: #fef3c7;
+  color: #92400e;
+  padding: 1px 2px;
+  border-radius: 2px;
+  font-weight: 600;
 }
 
 .filter-controls {
