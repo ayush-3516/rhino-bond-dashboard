@@ -54,15 +54,18 @@
     <!-- Main Content Area -->
     <div class="content-area">
       <!-- Search Panel -->
-      <div class="search-panel">
+      <div class="search-panel" style="min-width: 400px; border: 2px solid #42b983; background: #f8f9fa;">
         <div class="panel-header">
           <h2 class="panel-title">User Selection</h2>
+          <p style="color: #666; font-size: 0.9rem;">Users: {{ users.length }}, Filtered: {{ filteredUsers.length }}</p>
         </div>
         <div class="panel-content">
           <SearchControls
             @search="handleSearch"
             @select-all="selectAll"
             @clear-selection="clearSelection"
+            @sort="handleSort"
+            @filter="handleFilter"
           />
           
           <UserList
@@ -162,6 +165,11 @@ onMounted(async () => {
       pointsStore.calculateSummaryStats()
     ])
     
+    // Check if usersData is valid
+    if (!Array.isArray(usersData)) {
+      throw new Error('Invalid users data received')
+    }
+    
     users.value = usersData
     filteredUsers.value = users.value
     
@@ -218,6 +226,79 @@ async function handleSearch(query) {
       user.email?.toLowerCase().includes(lowercaseQuery)
     )
   }
+}
+
+// Sorting functionality
+function handleSort(sortType) {
+  const sortedUsers = [...filteredUsers.value]
+  
+  switch (sortType) {
+    case 'name':
+      sortedUsers.sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+      break
+    case 'name-desc':
+      sortedUsers.sort((a, b) => (b.name || '').localeCompare(a.name || ''))
+      break
+    case 'points':
+      sortedUsers.sort((a, b) => (b.points_balance || 0) - (a.points_balance || 0))
+      break
+    case 'points-asc':
+      sortedUsers.sort((a, b) => (a.points_balance || 0) - (b.points_balance || 0))
+      break
+    case 'email':
+      sortedUsers.sort((a, b) => (a.email || '').localeCompare(b.email || ''))
+      break
+  }
+  
+  filteredUsers.value = sortedUsers
+}
+
+// Filtering functionality
+function handleFilter(filterType) {
+  let filtered = [...users.value]
+  
+  // Apply points filter
+  switch (filterType) {
+    case '0':
+      filtered = filtered.filter(user => (user.points_balance || 0) === 0)
+      break
+    case '1-100':
+      filtered = filtered.filter(user => {
+        const points = user.points_balance || 0
+        return points >= 1 && points <= 100
+      })
+      break
+    case '101-500':
+      filtered = filtered.filter(user => {
+        const points = user.points_balance || 0
+        return points >= 101 && points <= 500
+      })
+      break
+    case '501-1000':
+      filtered = filtered.filter(user => {
+        const points = user.points_balance || 0
+        return points >= 501 && points <= 1000
+      })
+      break
+    case '1000+':
+      filtered = filtered.filter(user => (user.points_balance || 0) >= 1000)
+      break
+    case 'all':
+    default:
+      // No filtering
+      break
+  }
+  
+  // Apply search query if it exists
+  if (searchQuery.value.trim()) {
+    const lowercaseQuery = searchQuery.value.toLowerCase()
+    filtered = filtered.filter(user => 
+      user.name?.toLowerCase().includes(lowercaseQuery) || 
+      user.email?.toLowerCase().includes(lowercaseQuery)
+    )
+  }
+  
+  filteredUsers.value = filtered
 }
 
 // User selection management
@@ -414,7 +495,17 @@ function handleModalConfirm() {
   display: grid;
   grid-template-columns: 1fr 350px;
   gap: var(--space-lg);
+  min-height: 500px;
 }
+
+/* Debug: Ensure search panel is visible */
+.search-panel {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  min-height: 400px;
+}
+
 
 .panel-header {
   margin-bottom: var(--space-md);
